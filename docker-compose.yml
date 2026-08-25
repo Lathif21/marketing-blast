@@ -1,0 +1,93 @@
+# Seluruh komponen berjalan di satu VPS. Redis sengaja tidak ada: antrean
+# memakai tabel PostgreSQL sampai volume benar-benar menuntut sebaliknya
+# (01-arsitektur.md).
+#
+# Salin .env.example menjadi .env sebelum `docker compose up`.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Hanya terbuka ke localhost VPS, tidak ke internet. Port host dapat
+      # diganti lewat POSTGRES_HOST_PORT bila 5432 sudah terpakai.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MAIL_DRIVER: ${MAIL_DRIVER:-dummy}
+      MAIL_OUTBOX_DIR: /app/var/outbox
+      SENDER_DOMAIN: ${SENDER_DOMAIN}
+      SENDER_MAIL_FROM_SUBDOMAIN: ${SENDER_MAIL_FROM_SUBDOMAIN:-mail}
+      SENDER_ADDRESS: ${SENDER_ADDRESS}
+      SENDER_NAME: ${SENDER_NAME}
+      SENDER_POSTAL_ADDRESS: ${SENDER_POSTAL_ADDRESS}
+      DMARC_REPORT_TO: ${DMARC_REPORT_TO}
+      DMARC_POLICY: ${DMARC_POLICY:-none}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      SES_CONFIGURATION_SET: ${SES_CONFIGURATION_SET}
+      SES_DKIM_TOKENS: ${SES_DKIM_TOKENS}
+    volumes:
+      - outbox:/app/var/outbox
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  worker:
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    volumes:
+      - outbox:/app/var/outbox
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MAIL_DRIVER: ${MAIL_DRIVER:-dummy}
+      MAIL_OUTBOX_DIR: /app/var/outbox
+      SENDER_DOMAIN: ${SENDER_DOMAIN}
+      SENDER_MAIL_FROM_SUBDOMAIN: ${SENDER_MAIL_FROM_SUBDOMAIN:-mail}
+      SENDER_ADDRESS: ${SENDER_ADDRESS}
+      SENDER_NAME: ${SENDER_NAME}
+      SENDER_POSTAL_ADDRESS: ${SENDER_POSTAL_ADDRESS}
+      DMARC_REPORT_TO: ${DMARC_REPORT_TO}
+      DMARC_POLICY: ${DMARC_POLICY:-none}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      SES_CONFIGURATION_SET: ${SES_CONFIGURATION_SET}
+      SES_DKIM_TOKENS: ${SES_DKIM_TOKENS}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  outbox:

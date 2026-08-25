@@ -1,0 +1,23 @@
+{
+  "name": "@marketing-blast/api",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "dns:check": "node dist/scripts/check-dns.js"
+  },
+  "dependencies": {
+    "fastify": "5.2.1",
+    "pg": "8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/pg": "8.11.10",
+    "typescript": "5.6.3"
+  }
+}
