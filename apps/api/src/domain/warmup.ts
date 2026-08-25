@@ -44,3 +44,49 @@ export const AMBANG = {
   bounce: { perhatian: 2, kritis: 5 },
   keluhan: { perhatian: 0.1, kritis: 0.3 },
 } as const;
+
+/**
+ * Tanggal paling awal seluruh penerima dapat terkirim, atau `null` bila muat
+ * hari ini.
+ *
+ * Dipakai pemeriksaan pra-kirim supaya UI dapat menawarkan "jadwalkan pada
+ * tanggal X" tanpa menghitung sendiri — keadaan terblokir harus menawarkan
+ * jalan keluar, bukan sekadar menolak (03-layar-dan-alur.md §4).
+ *
+ * Dua argumen kuota, bukan satu, karena keduanya berbeda: hari ini yang
+ * tersisa mungkin sudah terpakai sebagian, sedangkan hari-hari berikutnya
+ * mendapat batas penuh. Menghitung seluruh hari memakai sisa hari ini
+ * menghasilkan tanggal yang terlalu jauh — dan tanggal yang meleset ke arah
+ * mana pun membuat tawaran "jadwalkan pada tanggal X" tidak dapat dipercaya.
+ *
+ * Hari mengikuti `CURRENT_DATE` PostgreSQL, jadi perhitungan di sini memakai
+ * UTC agar tidak berbeda dari saat kuota benar-benar disetel ulang.
+ */
+export function tanggalMuat(
+  sisaHariIni: number | null,
+  jumlahPenerima: number,
+  batasHariBerikutnya: number | null = sisaHariIni,
+): string | null {
+  // Tanpa batas: tidak pernah ada alasan menunda.
+  if (sisaHariIni === null) return null;
+
+  const sisaSetelahHariIni = jumlahPenerima - Math.max(sisaHariIni, 0);
+  if (sisaSetelahHariIni <= 0) return null;
+
+  // Hari berikutnya tanpa batas: sisanya habis besok.
+  let hariTambahan: number;
+  if (batasHariBerikutnya === null) {
+    hariTambahan = 1;
+  } else if (batasHariBerikutnya <= 0) {
+    // Batas nol berarti tidak akan pernah muat. Yang menahan pengiriman adalah
+    // butir pemeriksaan yang gagal, bukan tanggal — jadi tidak ada tanggal
+    // yang jujur untuk ditawarkan di sini.
+    return null;
+  } else {
+    hariTambahan = Math.ceil(sisaSetelahHariIni / batasHariBerikutnya);
+  }
+
+  const tanggal = new Date();
+  tanggal.setUTCDate(tanggal.getUTCDate() + hariTambahan);
+  return tanggal.toISOString().slice(0, 10);
+}

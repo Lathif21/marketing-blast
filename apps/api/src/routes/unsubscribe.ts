@@ -13,7 +13,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { verifyUnsubscribeToken } from "../lib/tokens.js";
-import { suppressByContactId } from "../suppression/repo.js";
+import { suppressByUnsubscribeId } from "../suppression/repo.js";
 
 function page(title: string, body: string, tone: "ok" | "error" = "ok"): string {
   const accent = tone === "ok" ? "#2b7a5a" : "#8c2e2e";
@@ -88,12 +88,18 @@ export async function unsubscribeRoutes(app: FastifyInstance) {
     const contactId = verifyUnsubscribeToken(token);
     if (!contactId) return { code: 404, html: NOT_VALID };
 
-    const result = await suppressByContactId(contactId, "unsubscribe");
+    const result = await suppressByUnsubscribeId(contactId, "unsubscribe");
 
-    // Token sah tapi kontaknya sudah tidak ada. Tetap tampilkan berhasil:
-    // dari sisi penerima, hasil akhirnya memang sama — mereka tidak akan
-    // dikirimi lagi. Menampilkan galat hanya membuat mereka mencoba lagi.
-    if (!result) return { code: 200, html: done("Alamat Anda") };
+    // Tidak ada alamat yang dapat ditemukan untuk token ini, jadi tidak ada
+    // yang dapat ditekan.
+    //
+    // Sebelumnya keadaan ini menampilkan halaman BERHASIL dengan alasan
+    // "hasil akhirnya sama". Alasan itu keliru: tidak ada baris yang ditulis
+    // ke daftar penekanan, sehingga kampanye berikutnya tetap sampai ke orang
+    // yang baru saja diberi tahu bahwa ia sudah berhenti. Berhenti
+    // berlangganan yang gagal diam-diam lebih buruk daripada yang gagal
+    // terang-terangan — yang terang-terangan masih bisa ditindaklanjuti.
+    if (!result) return { code: 404, html: NOT_VALID };
 
     return { code: 200, html: done(result.email) };
   };

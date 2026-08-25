@@ -1,8 +1,9 @@
 // Daftar pekerjaan terjadwal beserta frekuensinya, sesuai 01-arsitektur.md.
 //
-// Semua handler masih kosong. Yang sudah tetap adalah nama, frekuensi, dan
-// urutan fase pengerjaannya — supaya penjadwalnya bisa diuji lebih dulu tanpa
-// menunggu logika pengiriman siap.
+// `send-worker` sudah terisi. Sisanya masih kosong, dan `phase` menyatakan
+// fase mana yang mengisinya.
+
+import { runSendWorker } from "./send-worker.js";
 
 export interface Job {
   name: string;
@@ -31,7 +32,12 @@ export const JOBS: Job[] = [
     intervalMs: MINUTE,
     phase: 2,
     // Ambil antrean, kirim sesuai batas harian yang berlaku.
-    run: pending("send-worker"),
+    //
+    // Sempat tertinggal sebagai stub setelah handler-nya ditulis: handler ada,
+    // tapi penjadwal tetap memanggil `pending`. Akibatnya worker mencatat
+    // "belum diimplementasikan" tiap menit dan tidak ada satu pun pesan yang
+    // diproses — kegagalan yang tidak menimbulkan galat sama sekali.
+    run: runSendWorker,
   },
   {
     name: "verify-worker",

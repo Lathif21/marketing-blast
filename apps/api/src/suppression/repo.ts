@@ -57,21 +57,46 @@ export async function suppressByEmail(
   });
 }
 
-/** Dipakai jalur berhenti berlangganan, yang hanya memegang `contact_id`. */
-export async function suppressByContactId(
-  contactId: string,
+/**
+ * Menekan alamat berdasarkan pengenal yang dibawa token berhenti berlangganan.
+ *
+ * Pengenal itu dicari di dua tempat:
+ *
+ *   1. `contacts.id` — token dari jalur lain yang memegang id kontak
+ *   2. `campaign_recipients.id` — jalur pengiriman; inilah yang dipakai
+ *      seluruh pesan keluar, karena id baris penerima bertahan meski
+ *      kontaknya dihapus
+ *
+ * Sebelumnya hanya nomor 1 yang dicari, dan itu lubang kepatuhan yang serius:
+ * membatalkan batch impor menghapus kontak (`ON DELETE SET NULL` pada
+ * `campaign_recipients.contact_id`) sementara baris penerimanya tetap `queued`
+ * dan tetap dikirimi. Penerima yang lalu mengklik "berhenti berlangganan"
+ * mendapat halaman BERHASIL, padahal tidak ada satu baris pun ditulis ke
+ * daftar penekanan — dan kampanye berikutnya tetap sampai kepadanya.
+ *
+ * Daftar penekanan dikunci pada email, bukan pada kontak, justru supaya
+ * catatannya bertahan lebih lama daripada kontaknya. Jalur tulis ini harus
+ * mengikuti kunci itu.
+ */
+export async function suppressByUnsubscribeId(
+  id: string,
   reason: SuppressionReason,
 ): Promise<{ email: string } | null> {
   return transaction(async (client) => {
     const { rows } = await client.query<{ email: string }>(
-      "SELECT email FROM contacts WHERE id = $1",
-      [contactId],
+      `SELECT email::text AS email FROM contacts WHERE id = $1
+       UNION ALL
+       SELECT email::text FROM campaign_recipients WHERE id = $1
+       LIMIT 1`,
+      [id],
     );
     if (rows.length === 0) return null;
 
     const email = rows[0].email;
     await suppress(client, email, reason);
-    await client.query("UPDATE contacts SET status = 'diblokir' WHERE id = $1", [contactId]);
+    // Diblokir berdasarkan alamat, bukan berdasarkan id: kontak dengan alamat
+    // yang sama bisa saja sudah diimpor ulang di bawah id yang berbeda.
+    await client.query("UPDATE contacts SET status = 'diblokir' WHERE email = $1", [email]);
     return { email };
   });
 }

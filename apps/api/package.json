@@ -14,7 +14,8 @@
     "test": "node --test \"dist/test/*.test.js\"",
     "check": "tsc && node --test \"dist/test/*.test.js\"",
     "dev:worker": "tsc && node --env-file=../../.env dist/worker.js",
-    "migrate:local": "node --env-file=../../.env dist/migrate.js"
+    "migrate:local": "node --env-file=../../.env dist/migrate.js",
+    "test:e2e": "tsc && node --env-file=../../.env dist/scripts/regression.js"
   },
   "dependencies": {
     "@fastify/multipart": "^9.0.3",

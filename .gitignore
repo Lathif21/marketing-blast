@@ -3,3 +3,10 @@ dist
 *.local
 .DS_Store
 .env
+
+# Outbox driver dummy. Berisi pesan utuh: alamat penerima sungguhan dan token
+# berhenti berlangganan yang masih sah. Token itu cukup untuk menghentikan
+# langganan kontak mana pun yang ada di dalamnya, jadi berkas ini tidak boleh
+# masuk riwayat git — sekali ter-commit, ia permanen.
+apps/api/var/
+var/outbox/

@@ -10,6 +10,7 @@ import multipart from "@fastify/multipart";
 import { config, validateConfig } from "./config.js";
 import { close, ping } from "./db.js";
 import { mailDriver } from "./mail/index.js";
+import { campaignRoutes } from "./routes/campaigns.js";
 import { contactRoutes } from "./routes/contacts.js";
 import { domainRoutes } from "./routes/domain.js";
 import { importRoutes } from "./routes/imports.js";
@@ -97,6 +98,7 @@ app.get("/health", async (_req, reply) => {
 await app.register(unsubscribeRoutes);
 await app.register(sesWebhookRoutes);
 await app.register(suppressionRoutes);
+await app.register(campaignRoutes);
 await app.register(contactRoutes);
 await app.register(domainRoutes);
 await app.register(importRoutes);
