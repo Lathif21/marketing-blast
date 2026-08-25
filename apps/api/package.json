@@ -7,12 +7,14 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
-    "dev": "tsc --watch",
+    "dev": "tsc && node --env-file=../../.env dist/migrate.js && node --env-file=../../.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "dns:check": "node dist/scripts/check-dns.js",
     "migrate": "node dist/migrate.js",
     "test": "node --test \"dist/test/*.test.js\"",
-    "check": "tsc && node --test \"dist/test/*.test.js\""
+    "check": "tsc && node --test \"dist/test/*.test.js\"",
+    "dev:worker": "tsc && node --env-file=../../.env dist/worker.js",
+    "migrate:local": "node --env-file=../../.env dist/migrate.js"
   },
   "dependencies": {
     "@fastify/multipart": "^9.0.3",

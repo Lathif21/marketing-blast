@@ -38,15 +38,31 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Content-Type hanya disetel kalau permintaannya benar-benar membawa body.
+ *
+ * Menyetel `application/json` pada permintaan tanpa body membuat server
+ * menolaknya dengan 400 "Body cannot be empty" — dan itu mengenai justru
+ * endpoint yang memang tidak butuh body: commit dan pembatalan impor.
+ * `FormData` sengaja dilewati: browser harus menyusun sendiri header
+ * multipart-nya, lengkap dengan boundary.
+ */
+function buildHeaders(init?: RequestInit): HeadersInit {
+  const punyaBody = init?.body !== undefined && init.body !== null;
+  const multipart = init?.body instanceof FormData;
+
+  return {
+    ...(punyaBody && !multipart ? { "Content-Type": "application/json" } : {}),
+    ...init?.headers,
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       ...init,
-      headers: {
-        ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-        ...init?.headers,
-      },
+      headers: buildHeaders(init),
     });
   } catch (err) {
     // Gagal menyambung sama sekali. Dibedakan dari galat HTTP supaya layar
@@ -149,6 +165,11 @@ export async function listSuppression(page = 1, perPage = 50): Promise<Paginated
 // ─── Impor ───────────────────────────────────────────────────────────────────
 
 export interface ImportPreview {
+  /**
+   * Id SESI impor, hidup di memori server sampai commit atau kedaluwarsa.
+   * BUKAN id batch di basis data — `commitImport` mengembalikan id yang
+   * berbeda dengan nama field yang sama.
+   */
   batch_id: string;
   filename: string;
   row_count: number;
@@ -193,12 +214,21 @@ export const saveImportMapping = (
     body: json({ mapping, consent_source: consentSource, declared_by: declaredBy }),
   });
 
+/**
+ * Menyimpan baris yang lolos. `batchId` di sini adalah id SESI dari
+ * `uploadImport`; yang dikembalikan adalah id batch di basis data — itulah
+ * yang dipakai `cancelImport` setelah impor tersimpan.
+ */
 export const commitImport = (batchId: string) =>
   request<{ batch_id: string; imported: number }>(`/imports/${batchId}/commit`, {
     method: "POST",
   });
 
-/** Batalkan batch. Alamat yang sudah ditekan tetap tinggal. */
+/**
+ * Batalkan. Menerima id sesi (sebelum commit — tidak menyisakan apa pun) atau
+ * id batch basis data (setelah commit — menghapus kontaknya).
+ * Alamat yang sudah masuk daftar penekanan tetap tinggal dalam kedua kasus.
+ */
 export const cancelImport = (batchId: string) =>
   request<{ dibatalkan: string; deleted: number; kept_suppressed?: number }>(
     `/imports/${batchId}`,

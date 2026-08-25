@@ -105,6 +105,10 @@ export async function importRoutes(app: FastifyInstance) {
     });
 
     return {
+      // Ini id SESI impor (di memori), bukan id baris `import_batches` —
+      // baris itu baru dibuat saat commit. `commit` mengembalikan id yang
+      // berbeda dengan nama field yang sama; keduanya sengaja diterima
+      // `DELETE /imports/:id` karena artinya bagi pengguna sama: batalkan.
       batch_id: staged.id,
       filename,
       row_count: records.length,
@@ -214,6 +218,9 @@ export async function importRoutes(app: FastifyInstance) {
     });
 
     staging.drop(staged.id);
+    // Mulai titik ini, id sesi tidak berlaku lagi. Yang dikembalikan adalah id
+    // baris `import_batches` — itulah yang dipakai membatalkan batch nanti,
+    // sampai 30 hari.
     return { batch_id: result.batchId, imported: result.imported };
   });
 

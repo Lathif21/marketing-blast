@@ -44,6 +44,35 @@ Sumber data internal: `github.com/Lathif21/email_scrapper`
 | [07-domain-dan-dns.md](07-domain-dan-dns.md) | Domain pengirim, SPF, DKIM, DMARC — cara memasang dan memeriksanya |
 | [08-amazon-ses.md](08-amazon-ses.md) | Akun AWS, verifikasi domain, keluar sandbox, webhook pemantulan |
 
+## Menjalankan secara lokal
+
+Tiga proses, tiga terminal. Salin `.env.example` menjadi `.env` lebih dulu.
+
+```bash
+npm run dev:db      # PostgreSQL lewat Docker
+npm run dev:api     # bangun, migrasikan, lalu jalankan API di :3000
+npm run dev         # Vite di :5173
+```
+
+`npm run dev:api` menjalankan migrasi setiap kali, dan migrasinya idempoten —
+jadi tidak perlu diingat kapan terakhir dijalankan.
+
+Layar impor, kontak, dan daftar suppres membaca dari API. Kalau API belum
+hidup, ketiganya menampilkan pesan yang menyebutkan perintah di atas, bukan
+galat jaringan mentah.
+
+Menghentikan basis data: `npm run dev:stop`.
+
+### Menyetel `.env`
+
+| Variabel | Untuk apa |
+|---|---|
+| `POSTGRES_HOST_PORT` | Ganti bila 5432 sudah dipakai proses lain di mesin Anda |
+| `DATABASE_URL` | Dipakai saat API dijalankan di host; Docker Compose menyusun miliknya sendiri |
+| `APP_DATABASE_URL` | Peran aplikasi — tanpa hak DELETE pada `suppression` |
+| `UNSUBSCRIBE_SECRET` | Wajib, minimal 32 karakter: `openssl rand -hex 32` |
+| `MAIL_DRIVER` | Biarkan `dummy` sampai prasyarat di [08-amazon-ses.md](08-amazon-ses.md) terpenuhi |
+
 ## Konteks pengembangan
 
 Dikerjakan satu orang secara paruh waktu. Konsekuensinya ada di setiap

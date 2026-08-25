@@ -26,6 +26,33 @@ await app.register(multipart, {
   attachFieldsToBody: false,
 });
 
+// Body JSON kosong diperlakukan sebagai "tidak ada body", bukan sebagai galat.
+//
+// Bawaan Fastify menolaknya dengan 400 "Body cannot be empty when content-type
+// is set to 'application/json'". Itu keliru untuk endpoint yang memang tidak
+// butuh body — commit dan pembatalan impor — dan menghasilkan pesan yang tidak
+// menjelaskan apa pun ke pengguna.
+//
+// Endpoint yang benar-benar butuh isi tetap aman: field yang hilang divalidasi
+// per rute dan dibalas 422 beserta alasannya, yang jauh lebih berguna daripada
+// 400 tanpa konteks.
+app.removeContentTypeParser("application/json");
+app.addContentTypeParser(
+  "application/json",
+  { parseAs: "string" },
+  (_req, body, done) => {
+    const teks = (body as string).trim();
+    if (teks === "") return done(null, undefined);
+    try {
+      done(null, JSON.parse(teks));
+    } catch {
+      const err = new Error("Body bukan JSON yang sah") as Error & { statusCode?: number };
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  },
+);
+
 // SNS mengirim notifikasi dengan Content-Type text/plain. Tanpa parser ini
 // Fastify menolak body-nya sebelum verifikasi tanda tangan sempat berjalan.
 app.addContentTypeParser("text/plain", { parseAs: "string" }, (_req, body, done) => {

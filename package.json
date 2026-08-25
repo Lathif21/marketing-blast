@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:db": "docker compose up -d db",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:stop": "docker compose down",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
