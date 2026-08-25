@@ -93,28 +93,15 @@ export interface SuppressionEntry {
   date: string;
 }
 
-export interface DomainHealth {
-  name: string;
-  bounceRate: number;
-  complaintRate: number;
-  warmupStage: number;
-  warmupTotal: number;
-  dailyLimit: number;
-  sentToday: number;
-}
+// Bentuk kesehatan domain TIDAK didefinisikan di sini. Ia hidup di lib/api.ts
+// bersama pemanggilannya, karena bentuknya harus mengikuti respons server —
+// termasuk `null` pada metrik yang belum punya sumber data. Dua definisi untuk
+// hal yang sama adalah cara tercepat keduanya berbeda tanpa ada yang sadar.
 
 export interface Segment {
   id: string;
   label: string;
   count: number;
-}
-
-export interface ContactDistributionSlice {
-  label: string;
-  count: number;
-  color: string;
-  bar: string;
-  sub: string;
 }
 
 export interface FunnelStage {

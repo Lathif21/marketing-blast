@@ -1,33 +1,30 @@
-// Data tiruan untuk prototype. Setiap konstanta di sini adalah titik yang harus
-// diganti panggilan API — lihat lib/api.ts untuk endpoint padanannya.
+// SISA data contoh untuk layar yang BELUM tersambung ke API.
 //
-// Aturan isi: tidak ada sumber izin yang bertentangan dengan keputusan
-// kepatuhan. Sourcing LinkedIn dikeluarkan dari lingkup, jadi tidak boleh
-// muncul sebagai contoh sekalipun (05-revisi-desain.md, Revisi 6).
+// Isi berkas ini menyusut setiap kali satu layar tersambung. Yang tersisa
+// hanya dipakai dua tempat:
+//
+//   ReportScreen          — laporan kampanye; tabel `campaigns` belum ada
+//   CampaignBuilderScreen — daftar segmen; penyusunan segmen belum dibangun
+//
+// Angka kesehatan domain dan kuota harian SUDAH TIDAK ADA di sini. Keduanya
+// kini datang dari GET /domain/health, dan sengaja dihapus dari berkas ini:
+// selama masih diekspor, satu impor tidak sengaja cukup untuk menampilkan
+// bounce 1,8% dan sisa kuota 313 yang terlihat meyakinkan padahal tidak ada
+// dasarnya. Pada layar pertama yang dilihat pengguna — apalagi saat produk
+// didemokan — itu kekeliruan yang mahal.
+//
+// Aturan untuk apa pun yang ditambahkan ke sini: kalau angkanya bisa
+// disalahartikan sebagai keadaan sungguhan, ia tidak boleh masuk. Yang belum
+// terukur ditampilkan sebagai "belum ada data", bukan sebagai nol atau contoh.
 
-import type {
-  Campaign,
-  Contact,
-  ContactDistributionSlice,
-  DomainHealth,
-  FunnelStage,
-  Segment,
-  SuppressionEntry,
-} from "./types";
+import type { Campaign, FunnelStage, Segment } from "./types";
 
-// ─── Kesehatan domain — GET /domain/health ───────────────────────────────────
-
-export const DOMAIN: DomainHealth = {
-  name: "blast.nusantarasales.id",
-  bounceRate: 1.8,
-  complaintRate: 0.04,
-  warmupStage: 3,
-  warmupTotal: 5,
-  dailyLimit: 500,
-  sentToday: 187,
-};
-
-export const DAILY_REMAINING = DOMAIN.dailyLimit - DOMAIN.sentToday;
+/**
+ * Alasan karantina yang ditampilkan ke pengguna. Bukan data tiruan — ini teks
+ * tetap, diturunkan dari `email_origin = guessed` (04-aturan-kepatuhan.md §4).
+ */
+export const QUARANTINE_REASON =
+  "Alamat hasil tebakan, belum diverifikasi — dikecualikan dari pengiriman sampai lolos verifikasi";
 
 // ─── Kampanye — GET /campaigns ───────────────────────────────────────────────
 
@@ -37,53 +34,6 @@ export const CAMPAIGNS: Campaign[] = [
   { id: "C003", name: "Promo Akhir Tahun – Retail",  status: "draft",   recipients: 0,   opened: 0,   clicked: 0,  bounced: 0, date: "22 Sep 2024" },
   { id: "C004", name: "Undangan Webinar – Keuangan", status: "selesai", recipients: 380, opened: 201, clicked: 67, bounced: 4, date: "10 Sep 2024" },
   { id: "C005", name: "Perkenalan Produk – FMCG",    status: "selesai", recipients: 310, opened: 144, clicked: 31, bounced: 7, date: "05 Sep 2024" },
-];
-
-// ─── Kontak — GET /contacts ──────────────────────────────────────────────────
-//
-// Baris berstatus `karantina` selalu punya `emailOrigin: "guessed"`. Itu memang
-// satu-satunya alasan karantina pada tahap impor (04-aturan-kepatuhan.md §4) —
-// bukan sumber izinnya, yang justru sah untuk ketiga baris tersebut.
-
-export const CONTACTS: Contact[] = [
-  { id: "1",  company: "PT Astra International Tbk",    email: "procurement@astra.co.id",     consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "12 Agt 2024" },
-  { id: "2",  company: "PT Telkom Indonesia",           email: "vendor@telkom.co.id",         consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "14 Agt 2024" },
-  { id: "3",  company: "PT Bank Mandiri Tbk",           email: "supply@bankmandiri.co.id",    consent: "pameran",              emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
-  { id: "4",  company: "PT Unilever Indonesia",         email: "b2b@unilever.co.id",          consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
-  { id: "5",  company: "PT Indofood CBP Sukses Makmur", email: "vendor@indofood.co.id",       consent: "referral",              emailOrigin: "found",   status: "aktif",     date: "18 Agt 2024" },
-  { id: "6",  company: "PT Bank Central Asia Tbk",      email: "corp@bca.co.id",              consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "19 Agt 2024" },
-  { id: "7",  company: "CV Teknologi Maju Bersama",     email: "info@tekmabes.id",            consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "20 Agt 2024" },
-  { id: "8",  company: "PT Garuda Indonesia",           email: "cargo@garuda.co.id",          consent: "pameran",              emailOrigin: "found",   status: "diblokir",  date: "20 Agt 2024" },
-  { id: "9",  company: "PT Pertamina Persero",          email: "procurement@pertamina.co.id", consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "21 Agt 2024" },
-  { id: "10", company: "PT Sinarmas Agribusiness",      email: "sales@sinarmas.co.id",        consent: "referral",              emailOrigin: "found",   status: "aktif",     date: "22 Agt 2024" },
-  { id: "11", company: "PT Krakatau Steel",             email: "b2b@krakatausteel.co.id",     consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "22 Agt 2024" },
-  { id: "12", company: "PT Gojek Indonesia",            email: "corp@gojek.com",              consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
-  { id: "13", company: "PT Tokopedia",                  email: "b2b@tokopedia.com",           consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
-  { id: "14", company: "PT PLN Persero",                email: "vendor@pln.co.id",            consent: "pameran",              emailOrigin: "found",   status: "aktif",     date: "24 Agt 2024" },
-  { id: "15", company: "PT Mayora Indah Tbk",           email: "sales@mayora.co.id",          consent: "referral",              emailOrigin: "found",   status: "diblokir",  date: "24 Agt 2024" },
-];
-
-/** Alasan karantina yang ditampilkan ke pengguna, diturunkan dari `emailOrigin`. */
-export const QUARANTINE_REASON =
-  "Alamat hasil tebakan, belum diverifikasi — dikecualikan dari pengiriman sampai lolos verifikasi";
-
-export const CONTACT_DISTRIBUTION: ContactDistributionSlice[] = [
-  { label: "Aktif",                 count: 2847, color: "#5cc9a0", bar: "#2b7a5a", sub: "Siap dikirim"     },
-  { label: "Karantina",             count: 134,  color: "#d4a040", bar: "#92680a", sub: "Perlu verifikasi" },
-  { label: "Diblokir / Suppressed", count: 89,   color: "#e05252", bar: "#8c2e2e", sub: "Tidak dapat dikirim" },
-];
-
-// ─── Daftar penekanan — GET /suppression ─────────────────────────────────────
-
-export const SUPPRESSION: SuppressionEntry[] = [
-  { email: "noreply@badactor.id",     reason: "keluhan",     date: "14 Jul 2024" },
-  { email: "blocked@corporate.co.id", reason: "hard_bounce", date: "01 Agt 2024" },
-  { email: "ceo@competitor.id",       reason: "manual",      date: "05 Agt 2024" },
-  { email: "hr@problemcorp.co.id",    reason: "keluhan",     date: "11 Agt 2024" },
-  { email: "info@nonexistent.id",     reason: "hard_bounce", date: "15 Agt 2024" },
-  { email: "admin@blacklisted.com",   reason: "unsubscribe", date: "18 Agt 2024" },
-  { email: "sales@badomain.co.id",    reason: "hard_bounce", date: "20 Agt 2024" },
-  { email: "manager@spammy.co.id",    reason: "keluhan",     date: "21 Agt 2024" },
 ];
 
 // ─── Laporan — GET /campaigns/:id/report ─────────────────────────────────────
@@ -123,34 +73,6 @@ export const SEGMENTS: Segment[] = [
   { id: "keuangan",   label: "Industri: Keuangan & Perbankan", count: 267  },
   { id: "retail",     label: "Industri: Retail & FMCG",        count: 441  },
   { id: "recent",     label: "Impor Terakhir (30 hari)",       count: 183  },
-];
-
-// ─── Impor — POST /imports ───────────────────────────────────────────────────
-
-export const CSV_COLS = ["nama_perusahaan", "email_bisnis", "industri", "kota", "telepon"];
-
-export const CSV_ROWS = [
-  ["PT Maju Jaya Abadi", "kontak@majujaya.co.id",     "Manufaktur",  "Surabaya", "+62 31 5551234"],
-  ["CV Teknologi Prima", "info@tekprima.id",          "Teknologi",   "Bandung",  "+62 22 4442345"],
-  ["PT Sumber Rejeki",   "bisnis@sumberrejeki.co.id", "Perdagangan", "Medan",    "+62 61 6663456"],
-  ["PT Karya Mandiri",   "ceo@karyamandiri.id",       "Jasa",        "Jakarta",  "+62 21 3334567"],
-  ["UD Harapan Jaya",    "owner@harapanjaya.co.id",   "Retail",      "Makassar", "+62 411 7775678"],
-];
-
-export const IMPORT_FILENAME = "kontak_manufaktur_sep2024.csv";
-export const IMPORT_ROW_COUNT = 1342;
-
-export const IMPORT_SUMMARY = [
-  { label: "Diterima",    count: 1247, color: "#5cc9a0", bg: "rgba(43,122,90,0.15)",  desc: "Siap diimpor" },
-  { label: "Dikarantina", count: 18,   color: "#d4a040", bg: "rgba(180,120,30,0.15)", desc: "Alamat tebakan, perlu verifikasi" },
-  { label: "Duplikat",    count: 54,   color: "#8da0b8", bg: "rgba(106,130,160,0.1)", desc: "Sudah ada di sistem" },
-  { label: "Ditolak",     count: 23,   color: "#e05252", bg: "rgba(140,46,46,0.15)",  desc: "Format tidak valid" },
-];
-
-export const IMPORT_NOTES: { type: "warn" | "info" | "error"; text: string }[] = [
-  { type: "warn",  text: "18 kontak dikarantina – alamat hasil tebakan (email_source = guessed), wajib lolos verifikasi sebelum dapat dikirimi" },
-  { type: "info",  text: "54 alamat email duplikat tidak akan diimpor" },
-  { type: "error", text: "23 baris ditolak: 11 format email tidak valid, 12 nama perusahaan kosong" },
 ];
 
 // ─── Identitas pengirim ──────────────────────────────────────────────────────

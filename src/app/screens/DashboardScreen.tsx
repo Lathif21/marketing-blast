@@ -1,13 +1,24 @@
+import { AlertCircle } from "lucide-react";
+import { EmptyRow, ErrorRow, LoadingRow } from "../components/AsyncState";
 import { DomainHealthPanel } from "../components/DomainHealthPanel";
 import { SectionTitle } from "../components/SectionTitle";
-import { StatusBadge } from "../components/StatusBadge";
 import { Th } from "../components/Th";
-import { Mono, Num, PanelLabel, Truncate } from "../components/Typography";
-import { CAMPAIGNS, CONTACT_DISTRIBUTION } from "../lib/mock";
+import { Num, PanelLabel } from "../components/Typography";
+import { getContactDistribution } from "../lib/api";
+import { useAsync } from "../lib/useAsync";
 import type { Screen } from "../lib/types";
 
+/** Warna dan penjelasan tiap kelompok status. Bukan data — hanya penyajian. */
+const KELOMPOK = [
+  { key: "aktif" as const,     label: "Aktif",                 color: "#5cc9a0", bar: "#2b7a5a", sub: "Siap dikirim" },
+  { key: "karantina" as const, label: "Karantina",             color: "#d4a040", bar: "#92680a", sub: "Perlu verifikasi alamat" },
+  { key: "diblokir" as const,  label: "Diblokir / Suppressed",  color: "#e05252", bar: "#8c2e2e", sub: "Tidak dapat dikirim" },
+];
+
 export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
-  const contactTotal = CONTACT_DISTRIBUTION.reduce((sum, s) => sum + s.count, 0);
+  const { status, data, error, reload } = useAsync(() => getContactDistribution(), []);
+
+  const total = data ? data.aktif + data.karantina + data.diblokir : 0;
 
   return (
     <div className="p-6">
@@ -18,15 +29,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => voi
         <div className="col-span-2 min-w-0">
           <div className="flex items-center justify-between mb-3">
             <SectionTitle label="Kampanye Terakhir" />
-            <button
-              onClick={() => onNavigate("builder")}
-              className="text-xs border border-border rounded-sm px-2.5 py-1 transition-colors hover:text-foreground"
-              style={{ color: "#8da0b8" }}
-            >
-              + Buat Kampanye
-            </button>
           </div>
-          <div className="bg-card border border-border rounded-sm overflow-x-auto">
+          <div className="bg-card border border-border rounded-sm overflow-hidden">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border">
@@ -40,94 +44,104 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => voi
                   <Th>Tanggal</Th>
                 </tr>
               </thead>
-              <tbody>
-                {CAMPAIGNS.map((c) => {
-                  const hasData = c.recipients > 0;
-                  const pct = (n: number) => `${((n / c.recipients) * 100).toFixed(1)}%`;
-                  return (
-                    <tr
-                      key={c.id}
-                      onClick={() => hasData && onNavigate("report")}
-                      className={`border-b border-border last:border-0 transition-colors ${
-                        hasData ? "hover:bg-secondary/20 cursor-pointer" : "cursor-default"
-                      }`}
-                    >
-                      <td className="px-3 py-2">
-                        <Mono className="text-muted-foreground">{c.id}</Mono>
-                      </td>
-                      <td className="px-3 py-2 font-medium text-foreground">
-                        <Truncate maxWidth="180px">{c.name}</Truncate>
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusBadge status={c.status} />
-                      </td>
-                      <td className="px-3 py-2 text-right text-foreground">
-                        <Num>{hasData ? c.recipients.toLocaleString("id-ID") : "—"}</Num>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <Num style={{ color: hasData ? "#5cc9a0" : undefined }}>
-                          {hasData ? pct(c.opened) : "—"}
-                        </Num>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <Num style={{ color: hasData ? "#c4824a" : undefined }}>
-                          {hasData ? pct(c.clicked) : "—"}
-                        </Num>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <Num style={{ color: hasData && c.bounced > 0 ? "#d4a040" : undefined }}>
-                          {hasData ? pct(c.bounced) : "—"}
-                        </Num>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <Num className="text-muted-foreground">{c.date}</Num>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
             </table>
+            {/*
+              Tabel kampanye sengaja kosong, bukan berisi contoh.
+              Penyusunan dan pengiriman kampanye belum dibangun — tabel
+              `campaigns` bahkan belum ada. Mengisinya dengan baris contoh akan
+              menampilkan tingkat buka dan klik yang terlihat nyata pada layar
+              pertama, dan itu jenis kekeliruan yang paling mahal saat produk
+              didemokan.
+            */}
+            <EmptyRow
+              title="Belum ada kampanye"
+              hint="Penyusunan dan pengiriman kampanye dibangun setelah domain pengirim dan Amazon SES aktif. Sampai saat itu tabel ini kosong — bukan karena gagal dimuat."
+            />
+          </div>
+
+          <div className="flex items-start gap-2 mt-2">
+            <AlertCircle size={12} style={{ color: "#6a82a0", flexShrink: 0, marginTop: 2 }} />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Yang sudah dapat dikerjakan sekarang: mengimpor kontak dan melihat daftar penekanan.
+              Keduanya membaca data sungguhan.
+            </p>
           </div>
         </div>
 
-        {/* Distribusi kontak */}
+        {/* Distribusi kontak — nyata, dari GET /contacts/distribution */}
         <div>
           <SectionTitle label="Distribusi Kontak" />
-          <div className="space-y-2">
-            {CONTACT_DISTRIBUTION.map((s) => (
-              <div
-                key={s.label}
-                className="bg-card border border-border rounded-sm p-3"
-                style={{ borderLeftWidth: "3px", borderLeftColor: s.color }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{s.label}</span>
-                  <Num className="text-lg font-semibold" style={{ color: s.color }}>
-                    {s.count.toLocaleString("id-ID")}
-                  </Num>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
-              </div>
-            ))}
 
-            <div className="bg-card border border-border rounded-sm p-3 mt-1">
-              <PanelLabel className="mb-2">Komposisi</PanelLabel>
-              <div className="flex h-2 rounded-sm overflow-hidden gap-px">
-                {CONTACT_DISTRIBUTION.map((s) => (
-                  <div key={s.label} style={{ flex: s.count, backgroundColor: s.bar }} />
-                ))}
-              </div>
-              <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
-                <span>
-                  <Num>{((CONTACT_DISTRIBUTION[0].count / contactTotal) * 100).toFixed(1)}%</Num>{" "}
-                  aktif
-                </span>
-                <span>
-                  <Num>{contactTotal.toLocaleString("id-ID")}</Num> total
-                </span>
-              </div>
+          {status === "gagal" && !data ? (
+            <div className="bg-card border border-border rounded-sm">
+              <ErrorRow message={error} onRetry={reload} />
             </div>
-          </div>
+          ) : !data ? (
+            <div className="bg-card border border-border rounded-sm">
+              <LoadingRow />
+            </div>
+          ) : total === 0 ? (
+            <div className="bg-card border border-border rounded-sm">
+              <EmptyRow
+                title="Belum ada kontak"
+                hint="Impor daftar kontak untuk mulai. Angka di sini dihitung langsung dari basis data."
+                action={
+                  <button
+                    onClick={() => onNavigate("import")}
+                    className="px-3 py-1.5 text-xs rounded-sm"
+                    style={{ backgroundColor: "#c4824a", color: "#fff" }}
+                  >
+                    Impor Kontak
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {KELOMPOK.map((k) => (
+                <button
+                  key={k.key}
+                  type="button"
+                  onClick={() => onNavigate("contacts")}
+                  className="w-full text-left bg-card border border-border rounded-sm p-3 transition-colors hover:bg-secondary/20"
+                  style={{ borderLeftWidth: "3px", borderLeftColor: k.color }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{k.label}</span>
+                    <Num className="text-lg font-semibold" style={{ color: k.color }}>
+                      {data[k.key].toLocaleString("id-ID")}
+                    </Num>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{k.sub}</p>
+                </button>
+              ))}
+
+              <div className="bg-card border border-border rounded-sm p-3 mt-1">
+                <PanelLabel className="mb-2">Komposisi</PanelLabel>
+                <div className="flex h-2 rounded-sm overflow-hidden gap-px">
+                  {KELOMPOK.filter((k) => data[k.key] > 0).map((k) => (
+                    <div key={k.key} style={{ flex: data[k.key], backgroundColor: k.bar }} />
+                  ))}
+                </div>
+                <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
+                  <span>
+                    <Num>{((data.aktif / total) * 100).toFixed(1)}%</Num> aktif
+                  </span>
+                  <span>
+                    <Num>{total.toLocaleString("id-ID")}</Num> total
+                  </span>
+                </div>
+              </div>
+
+              {data.aktif === 0 && data.karantina > 0 && (
+                <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                  Seluruh kontak berstatus karantina. Itu memang keadaan yang benar setelah impor:
+                  alamat wajib lolos verifikasi sebelum dapat dikirimi, dan verifikasi alamat belum
+                  dibangun.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -18,7 +18,6 @@ import type {
   Contact,
   ContactStatus,
   ConsentSource,
-  DomainHealth,
   EmailOrigin,
   FunnelStage,
   SuppressionEntry,
@@ -235,9 +234,45 @@ export const cancelImport = (batchId: string) =>
     { method: "DELETE" },
   );
 
-// ─── Belum ada di server (Fase 2) ────────────────────────────────────────────
+// ─── Kesehatan domain ────────────────────────────────────────────────────────
+
+export type Ketersediaan = "tersedia" | "belum_ada_pengiriman" | "belum_terpasang";
+
+/**
+ * Bentuknya mengikuti server, termasuk `null` pada metrik yang belum punya
+ * sumber data. `null` di sini WAJIB dibedakan dari 0 saat ditampilkan:
+ * bounce 0% terbaca sehat, bounce null berarti belum ada yang bisa diukur.
+ */
+export interface DomainHealth {
+  domain: string;
+  warmup: {
+    stage: number;
+    total_stages: number;
+    daily_limit: number | null;
+    sent_today: number;
+    remaining_today: number | null;
+    days_sending: number | null;
+  };
+  reputation: {
+    bounce_rate_7d: number | null;
+    complaint_rate_7d: number | null;
+    thresholds: {
+      bounce: { perhatian: number; kritis: number };
+      keluhan: { perhatian: number; kritis: number };
+    };
+  };
+  suppression_total: number;
+  sumber: {
+    warmup: string;
+    pengiriman: Ketersediaan;
+    reputasi: Ketersediaan;
+  };
+  diperbarui_pada: string;
+}
 
 export const getDomainHealth = () => request<DomainHealth>("/domain/health");
+
+// ─── Belum ada di server (Fase 2) ────────────────────────────────────────────
 
 export interface CampaignReport {
   campaign: Campaign;

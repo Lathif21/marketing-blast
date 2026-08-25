@@ -13,7 +13,8 @@ import {
 import { SectionTitle } from "../components/SectionTitle";
 import { StepBar } from "../components/StepBar";
 import { Mono, Num, PanelLabel } from "../components/Typography";
-import { DAILY_REMAINING, DOMAIN, SEGMENTS, SENDER } from "../lib/mock";
+import { SEGMENTS, SENDER } from "../lib/mock";
+import { useDomainHealth } from "../lib/domainHealth";
 import type { BuilderStep } from "../lib/types";
 
 const VARIABLES = ["{{nama_perusahaan}}", "{{nama_kontak}}", "{{industri}}", "{{kota}}"];
@@ -53,9 +54,19 @@ export function CampaignBuilderScreen() {
   );
   const [body, setBody] = useState(DEFAULT_BODY);
 
+  // Kuota harian diambil dari sumber yang sama dengan panel dasbor dan
+  // sidebar. Angka kuota yang berbeda antara dasbor dan penyusun kampanye akan
+  // membuat keduanya tidak dapat dipercaya sekaligus.
+  const { data: health } = useDomainHealth();
+  const sisaKuota = health?.warmup.remaining_today ?? null;
+  const domainName = health?.domain ?? "—";
+
   const segment = SEGMENTS.find((s) => s.id === selectedSegment);
   const recipients = segment?.count ?? 0;
-  const isBlocked = recipients > DAILY_REMAINING;
+  // Kuota belum diketahui berarti belum boleh dinyatakan aman. Menganggapnya
+  // tak terbatas selagi memuat adalah cara paling mudah melewati batas
+  // pemanasan tanpa disadari.
+  const isBlocked = sisaKuota === null || recipients > sisaKuota;
   const subLen = subject.length;
 
   const fmt = (n: number) => n.toLocaleString("id-ID");
@@ -81,15 +92,18 @@ export function CampaignBuilderScreen() {
     {
       label: "Volume dalam batas pemanasan",
       ok: !isBlocked,
-      detail: isBlocked ? (
-        <>
-          <Num>{fmt(recipients)}</Num> melebihi sisa <Num>{fmt(DAILY_REMAINING)}</Num>
-        </>
-      ) : (
-        <>
-          <Num>{fmt(recipients)}</Num> ≤ <Num>{fmt(DAILY_REMAINING)}</Num> tersisa
-        </>
-      ),
+      detail:
+        sisaKuota === null ? (
+          "Sisa kuota harian belum diketahui"
+        ) : isBlocked ? (
+          <>
+            <Num>{fmt(recipients)}</Num> melebihi sisa <Num>{fmt(sisaKuota)}</Num>
+          </>
+        ) : (
+          <>
+            <Num>{fmt(recipients)}</Num> ≤ <Num>{fmt(sisaKuota)}</Num> tersisa
+          </>
+        ),
     },
     {
       label: "Sumber izin tercatat untuk seluruh penerima",
@@ -118,11 +132,17 @@ export function CampaignBuilderScreen() {
             <span className="text-xs text-muted-foreground">
               Batas pengiriman hari ini:{" "}
               <span className="text-foreground">
-                <Num>{fmt(DAILY_REMAINING)}</Num> email tersisa
+                {sisaKuota === null ? (
+                  "belum diketahui"
+                ) : (
+                  <>
+                    <Num>{fmt(sisaKuota)}</Num> email tersisa
+                  </>
+                )}
               </span>{" "}
               · Tahap pemanasan{" "}
               <Num>
-                {DOMAIN.warmupStage}/{DOMAIN.warmupTotal}
+                {health ? `${health.warmup.stage}/${health.warmup.total_stages}` : "—"}
               </Num>
             </span>
           </div>
@@ -130,7 +150,7 @@ export function CampaignBuilderScreen() {
           <div className="space-y-1.5">
             {SEGMENTS.map((seg) => {
               const selected = selectedSegment === seg.id;
-              const over = seg.count > DAILY_REMAINING;
+              const over = sisaKuota !== null && seg.count > sisaKuota;
               return (
                 <button
                   key={seg.id}
@@ -339,7 +359,7 @@ export function CampaignBuilderScreen() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Segmen yang dipilih (<Num>{fmt(recipients)}</Num> penerima) melebihi sisa kuota
-                  harian (<Num>{fmt(DAILY_REMAINING)}</Num> email). Mengirim melebihi batas ini
+                  harian (<Num>{sisaKuota === null ? "—" : fmt(sisaKuota)}</Num> email). Mengirim melebihi batas ini
                   berisiko merusak reputasi domain. Pilih segmen lebih kecil atau tunggu hari
                   berikutnya.
                 </p>
@@ -359,7 +379,7 @@ export function CampaignBuilderScreen() {
                   mono: false,
                 },
                 { label: "Pengirim", value: SENDER.email, mono: true },
-                { label: "Domain", value: DOMAIN.name, mono: true },
+                { label: "Domain", value: domainName, mono: true },
               ].map(({ label, value, mono }) => (
                 <div
                   key={label}

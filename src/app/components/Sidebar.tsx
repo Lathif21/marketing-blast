@@ -1,6 +1,6 @@
 import type React from "react";
 import { Activity, BarChart2, Database, Mail, Send, Upload, Users } from "lucide-react";
-import { DOMAIN } from "../lib/mock";
+import { useDomainHealth } from "../lib/domainHealth";
 import type { Screen } from "../lib/types";
 import { Mono, Num } from "./Typography";
 
@@ -20,9 +20,19 @@ export function Sidebar({
   screen: Screen;
   onNavigate: (s: Screen) => void;
 }) {
-  const bounceOk = DOMAIN.bounceRate < 2;
-  const complaintOk = DOMAIN.complaintRate < 0.1;
-  const overall = bounceOk && complaintOk;
+  const { data } = useDomainHealth();
+
+  const bounce = data?.reputation.bounce_rate_7d ?? null;
+  const keluhan = data?.reputation.complaint_rate_7d ?? null;
+  const ambang = data?.reputation.thresholds;
+
+  // Titik indikator: hijau HANYA kalau metriknya benar-benar terukur dan aman.
+  // Belum terukur ditandai netral, bukan hijau — sinyal hijau pada data yang
+  // tidak ada adalah kebohongan yang paling mudah dipercaya.
+  const terukur = bounce !== null && keluhan !== null && Boolean(ambang);
+  const aman =
+    terukur && bounce < ambang!.bounce.perhatian && keluhan < ambang!.keluhan.perhatian;
+  const warnaTitik = !terukur ? "#6a82a0" : aman ? "#5cc9a0" : "#d4a040";
 
   return (
     <div
@@ -77,26 +87,41 @@ export function Sidebar({
         <div className="flex items-center gap-1.5 mb-2">
           <span
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: overall ? "#5cc9a0" : "#d4a040" }}
+            style={{ backgroundColor: warnaTitik }}
           />
-          <Mono className="text-xs text-muted-foreground truncate" title={DOMAIN.name}>
-            {DOMAIN.name}
+          <Mono className="text-xs text-muted-foreground truncate" title={data?.domain}>
+            {data?.domain ?? "memuat…"}
           </Mono>
         </div>
         <div className="space-y-1">
           {[
-            { label: "Bounce",    val: `${DOMAIN.bounceRate}%`,    ok: bounceOk,    copper: false },
-            { label: "Keluhan",   val: `${DOMAIN.complaintRate}%`, ok: complaintOk, copper: false },
-            { label: "Pemanasan", val: `${DOMAIN.warmupStage}/${DOMAIN.warmupTotal}`, ok: true, copper: true },
+            {
+              label: "Bounce",
+              val: bounce === null ? "—" : `${bounce}%`,
+              warna: bounce === null ? "#6a82a0" : bounce < ambang!.bounce.perhatian ? "#5cc9a0" : "#d4a040",
+            },
+            {
+              label: "Keluhan",
+              val: keluhan === null ? "—" : `${keluhan}%`,
+              warna: keluhan === null ? "#6a82a0" : keluhan < ambang!.keluhan.perhatian ? "#5cc9a0" : "#d4a040",
+            },
+            {
+              label: "Pemanasan",
+              val: data ? `${data.warmup.stage}/${data.warmup.total_stages}` : "—",
+              warna: "#c4824a",
+            },
           ].map((m) => (
             <div key={m.label} className="flex justify-between text-xs">
               <span className="text-muted-foreground">{m.label}</span>
-              <Num style={{ color: m.copper ? "#c4824a" : m.ok ? "#5cc9a0" : "#d4a040" }}>
-                {m.val}
-              </Num>
+              <Num style={{ color: m.warna }}>{m.val}</Num>
             </div>
           ))}
         </div>
+        {!terukur && data && (
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: "#4d5f78" }}>
+            Belum ada pengiriman, jadi bounce dan keluhan belum terukur.
+          </p>
+        )}
       </div>
     </div>
   );
