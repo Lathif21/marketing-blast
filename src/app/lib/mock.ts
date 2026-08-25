@@ -46,21 +46,21 @@ export const CAMPAIGNS: Campaign[] = [
 // bukan sumber izinnya, yang justru sah untuk ketiga baris tersebut.
 
 export const CONTACTS: Contact[] = [
-  { id: 1,  company: "PT Astra International Tbk",    email: "procurement@astra.co.id",     consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "12 Agt 2024" },
-  { id: 2,  company: "PT Telkom Indonesia",           email: "vendor@telkom.co.id",         consent: "Alamat generik terpublikasi", emailOrigin: "guessed", status: "karantina", date: "14 Agt 2024" },
-  { id: 3,  company: "PT Bank Mandiri Tbk",           email: "supply@bankmandiri.co.id",    consent: "Pameran dagang",              emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
-  { id: 4,  company: "PT Unilever Indonesia",         email: "b2b@unilever.co.id",          consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
-  { id: 5,  company: "PT Indofood CBP Sukses Makmur", email: "vendor@indofood.co.id",       consent: "Referral mitra",              emailOrigin: "found",   status: "aktif",     date: "18 Agt 2024" },
-  { id: 6,  company: "PT Bank Central Asia Tbk",      email: "corp@bca.co.id",              consent: "Alamat generik terpublikasi", emailOrigin: "guessed", status: "karantina", date: "19 Agt 2024" },
-  { id: 7,  company: "CV Teknologi Maju Bersama",     email: "info@tekmabes.id",            consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "20 Agt 2024" },
-  { id: 8,  company: "PT Garuda Indonesia",           email: "cargo@garuda.co.id",          consent: "Pameran dagang",              emailOrigin: "found",   status: "diblokir",  date: "20 Agt 2024" },
-  { id: 9,  company: "PT Pertamina Persero",          email: "procurement@pertamina.co.id", consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "21 Agt 2024" },
-  { id: 10, company: "PT Sinarmas Agribusiness",      email: "sales@sinarmas.co.id",        consent: "Referral mitra",              emailOrigin: "found",   status: "aktif",     date: "22 Agt 2024" },
-  { id: 11, company: "PT Krakatau Steel",             email: "b2b@krakatausteel.co.id",     consent: "Alamat generik terpublikasi", emailOrigin: "guessed", status: "karantina", date: "22 Agt 2024" },
-  { id: 12, company: "PT Gojek Indonesia",            email: "corp@gojek.com",              consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
-  { id: 13, company: "PT Tokopedia",                  email: "b2b@tokopedia.com",           consent: "Formulir web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
-  { id: 14, company: "PT PLN Persero",                email: "vendor@pln.co.id",            consent: "Pameran dagang",              emailOrigin: "found",   status: "aktif",     date: "24 Agt 2024" },
-  { id: 15, company: "PT Mayora Indah Tbk",           email: "sales@mayora.co.id",          consent: "Referral mitra",              emailOrigin: "found",   status: "diblokir",  date: "24 Agt 2024" },
+  { id: "1",  company: "PT Astra International Tbk",    email: "procurement@astra.co.id",     consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "12 Agt 2024" },
+  { id: "2",  company: "PT Telkom Indonesia",           email: "vendor@telkom.co.id",         consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "14 Agt 2024" },
+  { id: "3",  company: "PT Bank Mandiri Tbk",           email: "supply@bankmandiri.co.id",    consent: "pameran",              emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
+  { id: "4",  company: "PT Unilever Indonesia",         email: "b2b@unilever.co.id",          consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "15 Agt 2024" },
+  { id: "5",  company: "PT Indofood CBP Sukses Makmur", email: "vendor@indofood.co.id",       consent: "referral",              emailOrigin: "found",   status: "aktif",     date: "18 Agt 2024" },
+  { id: "6",  company: "PT Bank Central Asia Tbk",      email: "corp@bca.co.id",              consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "19 Agt 2024" },
+  { id: "7",  company: "CV Teknologi Maju Bersama",     email: "info@tekmabes.id",            consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "20 Agt 2024" },
+  { id: "8",  company: "PT Garuda Indonesia",           email: "cargo@garuda.co.id",          consent: "pameran",              emailOrigin: "found",   status: "diblokir",  date: "20 Agt 2024" },
+  { id: "9",  company: "PT Pertamina Persero",          email: "procurement@pertamina.co.id", consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "21 Agt 2024" },
+  { id: "10", company: "PT Sinarmas Agribusiness",      email: "sales@sinarmas.co.id",        consent: "referral",              emailOrigin: "found",   status: "aktif",     date: "22 Agt 2024" },
+  { id: "11", company: "PT Krakatau Steel",             email: "b2b@krakatausteel.co.id",     consent: "alamat_generik_terpublikasi", emailOrigin: "guessed", status: "karantina", date: "22 Agt 2024" },
+  { id: "12", company: "PT Gojek Indonesia",            email: "corp@gojek.com",              consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
+  { id: "13", company: "PT Tokopedia",                  email: "b2b@tokopedia.com",           consent: "formulir_web",                emailOrigin: "found",   status: "aktif",     date: "23 Agt 2024" },
+  { id: "14", company: "PT PLN Persero",                email: "vendor@pln.co.id",            consent: "pameran",              emailOrigin: "found",   status: "aktif",     date: "24 Agt 2024" },
+  { id: "15", company: "PT Mayora Indah Tbk",           email: "sales@mayora.co.id",          consent: "referral",              emailOrigin: "found",   status: "diblokir",  date: "24 Agt 2024" },
 ];
 
 /** Alasan karantina yang ditampilkan ke pengguna, diturunkan dari `emailOrigin`. */
@@ -76,14 +76,14 @@ export const CONTACT_DISTRIBUTION: ContactDistributionSlice[] = [
 // ─── Daftar penekanan — GET /suppression ─────────────────────────────────────
 
 export const SUPPRESSION: SuppressionEntry[] = [
-  { email: "noreply@badactor.id",     reason: "Keluhan spam",                     type: "Keluhan",     date: "14 Jul 2024" },
-  { email: "blocked@corporate.co.id", reason: "Hard bounce – domain tidak valid", type: "Hard Bounce", date: "01 Agt 2024" },
-  { email: "ceo@competitor.id",       reason: "Opt-out manual oleh pengguna",     type: "Manual",      date: "05 Agt 2024" },
-  { email: "hr@problemcorp.co.id",    reason: "Keluhan spam",                     type: "Keluhan",     date: "11 Agt 2024" },
-  { email: "info@nonexistent.id",     reason: "Hard bounce – pengguna tidak ada", type: "Hard Bounce", date: "15 Agt 2024" },
-  { email: "admin@blacklisted.com",   reason: "Berhenti berlangganan",            type: "Unsubscribe", date: "18 Agt 2024" },
-  { email: "sales@badomain.co.id",    reason: "Hard bounce – domain tidak valid", type: "Hard Bounce", date: "20 Agt 2024" },
-  { email: "manager@spammy.co.id",    reason: "Keluhan spam",                     type: "Keluhan",     date: "21 Agt 2024" },
+  { email: "noreply@badactor.id",     reason: "keluhan",     date: "14 Jul 2024" },
+  { email: "blocked@corporate.co.id", reason: "hard_bounce", date: "01 Agt 2024" },
+  { email: "ceo@competitor.id",       reason: "manual",      date: "05 Agt 2024" },
+  { email: "hr@problemcorp.co.id",    reason: "keluhan",     date: "11 Agt 2024" },
+  { email: "info@nonexistent.id",     reason: "hard_bounce", date: "15 Agt 2024" },
+  { email: "admin@blacklisted.com",   reason: "unsubscribe", date: "18 Agt 2024" },
+  { email: "sales@badomain.co.id",    reason: "hard_bounce", date: "20 Agt 2024" },
+  { email: "manager@spammy.co.id",    reason: "keluhan",     date: "21 Agt 2024" },
 ];
 
 // ─── Laporan — GET /campaigns/:id/report ─────────────────────────────────────

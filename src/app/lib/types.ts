@@ -1,6 +1,8 @@
 // Tipe bersama untuk seluruh antarmuka.
-// Nilai enum mengikuti 02-model-data.md; label tampilan sengaja dipisah dari
-// nilai basis data supaya perubahan teks tidak menyentuh skema.
+//
+// Nilai enum di sini sama persis dengan enum PostgreSQL di apps/api/migrations.
+// Label tampilannya dipisah ke tabel di bawah — teks yang dilihat pengguna
+// boleh berubah tanpa menyentuh skema.
 
 export type Screen =
   | "dashboard"
@@ -21,23 +23,39 @@ export type EmailOrigin = "found" | "guessed" | "manual";
 
 /**
  * Sumber izin yang sah. Sourcing LinkedIn dikeluarkan dari lingkup produk,
- * jadi tidak boleh muncul di sini — baik sebagai nilai maupun sebagai contoh.
+ * jadi tidak ada nilainya di sini — baik sebagai enum maupun sebagai contoh.
  */
 export type ConsentSource =
-  | "Pelanggan existing"
-  | "Formulir web"
-  | "Izin lisan"
-  | "Pameran dagang"
-  | "Referral mitra"
-  | "Alamat generik terpublikasi";
+  | "pelanggan_existing"
+  | "formulir_web"
+  | "izin_lisan"
+  | "pameran"
+  | "referral"
+  | "alamat_generik_terpublikasi"
+  | "lainnya";
+
+export const CONSENT_LABELS: Record<ConsentSource, string> = {
+  pelanggan_existing: "Pelanggan existing",
+  formulir_web: "Formulir web",
+  izin_lisan: "Izin lisan",
+  pameran: "Pameran dagang",
+  referral: "Referral mitra",
+  alamat_generik_terpublikasi: "Alamat generik terpublikasi",
+  lainnya: "Lainnya",
+};
+
+export const CONSENT_SOURCES = Object.keys(CONSENT_LABELS) as ConsentSource[];
+
+export type ConsentStrength = "kuat" | "cukup" | "perlu_ditinjau";
 
 export interface Contact {
-  id: number;
+  id: string;
   company: string;
   email: string;
   consent: ConsentSource;
   emailOrigin: EmailOrigin;
   status: ContactStatus;
+  /** Tanggal impor, sudah diformat untuk ditampilkan. */
   date: string;
 }
 
@@ -52,12 +70,26 @@ export interface Campaign {
   date: string;
 }
 
-export type SuppressionType = "Unsubscribe" | "Hard Bounce" | "Keluhan" | "Manual";
+export type SuppressionReason = "unsubscribe" | "hard_bounce" | "keluhan" | "manual";
+
+export const SUPPRESSION_LABELS: Record<SuppressionReason, string> = {
+  unsubscribe: "Unsubscribe",
+  hard_bounce: "Hard Bounce",
+  keluhan: "Keluhan",
+  manual: "Manual",
+};
+
+/** Kalimat penjelas per alasan, ditampilkan di kolom Alasan. */
+export const SUPPRESSION_TEXT: Record<SuppressionReason, string> = {
+  unsubscribe: "Berhenti berlangganan atas permintaan penerima",
+  hard_bounce: "Hard bounce — alamat tidak dapat menerima",
+  keluhan: "Ditandai sebagai spam oleh penerima",
+  manual: "Opt-out manual oleh pengguna",
+};
 
 export interface SuppressionEntry {
   email: string;
-  reason: string;
-  type: SuppressionType;
+  reason: SuppressionReason;
   date: string;
 }
 

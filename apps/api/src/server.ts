@@ -1,15 +1,48 @@
-// Kerangka API. Fase 0 hanya menyiapkan proses yang bisa dijalankan Docker
-// Compose dan dicek sehat. Endpoint sebenarnya ditulis mulai Fase 1 —
-// daftarnya ada di 01-arsitektur.md.
+// API. Endpoint mengikuti daftar di 01-arsitektur.md.
+//
+// Dua rute sengaja berada di luar autentikasi apa pun:
+//   /unsubscribe/:token — penerima tidak punya akun, dan tidak boleh diminta
+//   /webhooks/ses       — SNS tidak bisa membawa kredensial kita
+// Keduanya mengamankan diri sendiri: token HMAC dan tanda tangan SNS.
 
 import Fastify from "fastify";
+import multipart from "@fastify/multipart";
 import { config, validateConfig } from "./config.js";
 import { close, ping } from "./db.js";
 import { mailDriver } from "./mail/index.js";
+import { contactRoutes } from "./routes/contacts.js";
+import { importRoutes } from "./routes/imports.js";
+import { suppressionRoutes } from "./routes/suppression.js";
+import { unsubscribeRoutes } from "./routes/unsubscribe.js";
+import { sesWebhookRoutes } from "./routes/webhooks-ses.js";
 
 const app = Fastify({
   logger: { level: config.env === "production" ? "info" : "debug" },
+  bodyLimit: 30 * 1024 * 1024,
 });
+
+await app.register(multipart, {
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  attachFieldsToBody: false,
+});
+
+// SNS mengirim notifikasi dengan Content-Type text/plain. Tanpa parser ini
+// Fastify menolak body-nya sebelum verifikasi tanda tangan sempat berjalan.
+app.addContentTypeParser("text/plain", { parseAs: "string" }, (_req, body, done) => {
+  done(null, body);
+});
+
+// Berhenti berlangganan satu klik (RFC 8058) datang sebagai POST dengan body
+// `List-Unsubscribe=One-Click` ber-Content-Type form-urlencoded. Isinya tidak
+// kita butuhkan — yang penting Fastify tidak menolaknya dengan 415 sebelum
+// rute sempat berjalan. Klien email tidak akan mencoba ulang.
+app.addContentTypeParser(
+  "application/x-www-form-urlencoded",
+  { parseAs: "string" },
+  (_req, body, done) => {
+    done(null, body);
+  },
+);
 
 app.get("/health", async (_req, reply) => {
   const mail = mailDriver();
@@ -33,12 +66,25 @@ app.get("/health", async (_req, reply) => {
   }
 });
 
+await app.register(unsubscribeRoutes);
+await app.register(sesWebhookRoutes);
+await app.register(suppressionRoutes);
+await app.register(contactRoutes);
+await app.register(importRoutes);
+
 async function start() {
   try {
     validateConfig();
   } catch (err) {
     app.log.error({ err }, "konfigurasi tidak valid");
     process.exit(1);
+  }
+
+  if (config.db.usingAdminForApp) {
+    app.log.warn(
+      "APP_DATABASE_URL kosong — aplikasi terhubung sebagai pemilik skema. " +
+        "Larangan DELETE pada tabel suppression TIDAK aktif dalam keadaan ini.",
+    );
   }
 
   const mail = mailDriver();
@@ -68,3 +114,5 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
 void start();
+
+export { app };

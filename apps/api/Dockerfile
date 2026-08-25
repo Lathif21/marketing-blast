@@ -14,6 +14,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# Runner migrasi membaca berkas SQL saat dijalankan, bukan saat build.
+COPY migrations ./migrations
 # Outbox driver dummy ditulis oleh proses non-root, jadi direktorinya harus
 # sudah ada dan dimiliki user `node` sebelum volume dipasang di atasnya.
 RUN mkdir -p /app/var/outbox && chown -R node:node /app/var

@@ -50,7 +50,44 @@ export const config = {
   port: Number(optional("PORT", "3000")),
   host: optional("HOST", "0.0.0.0"),
 
-  databaseUrl: required("DATABASE_URL"),
+  db: {
+    /** Pemilik skema. Hanya dipakai runner migrasi. */
+    adminUrl: required("DATABASE_URL"),
+    /**
+     * Peran aplikasi. Kalau kosong, aplikasi terpaksa memakai koneksi pemilik
+     * dan larangan DELETE pada `suppression` tidak aktif — diperingatkan saat
+     * start, bukan didiamkan.
+     */
+    appUrl: optional("APP_DATABASE_URL", "") || required("DATABASE_URL"),
+    usingAdminForApp: optional("APP_DATABASE_URL", "") === "",
+    appRole: {
+      user: optional("APP_DB_USER", "blast_app"),
+      password: optional("APP_DB_PASSWORD", ""),
+    },
+  },
+
+  /**
+   * URL publik yang dilihat penerima email. Dipakai membentuk tautan berhenti
+   * berlangganan, jadi harus dapat diakses dari luar tanpa autentikasi.
+   */
+  publicBaseUrl: optional("PUBLIC_BASE_URL", `https://${optional("SENDER_DOMAIN", "blast.contoh.id")}`),
+
+  /**
+   * Kunci HMAC token berhenti berlangganan. Token yang bisa ditebak
+   * memungkinkan orang lain menghentikan langganan kontak yang bukan miliknya.
+   */
+  unsubscribeSecret: optional("UNSUBSCRIBE_SECRET", ""),
+
+  /**
+   * Parameter dekripsi berkas .enc dari Contact Harvester. Nilainya harus sama
+   * persis dengan yang dipakai `crypto_utils.py` di alat itu — kalau impor
+   * gagal terus dengan pesan "kata sandi salah" padahal sandinya benar,
+   * angka inilah yang pertama dicurigai.
+   */
+  enc: {
+    saltBytes: Number(optional("ENC_SALT_BYTES", "16")),
+    pbkdf2Iterations: Number(optional("ENC_PBKDF2_ITERATIONS", "480000")),
+  },
 
   mail: {
     driver: mailDriver(),
@@ -99,6 +136,22 @@ export const config = {
  * lebih baik proses tidak naik daripada naik lalu diam-diam tidak mengirim.
  */
 export function validateConfig(): void {
+  if (!config.unsubscribeSecret) {
+    throw new Error(
+      "UNSUBSCRIBE_SECRET wajib diisi. Tanpa itu token berhenti berlangganan " +
+        "dapat ditebak, dan siapa pun bisa menghentikan langganan kontak orang lain. " +
+        "Buat dengan: openssl rand -hex 32",
+    );
+  }
+
+  if (config.unsubscribeSecret.length < 32) {
+    throw new Error("UNSUBSCRIBE_SECRET terlalu pendek — minimal 32 karakter.");
+  }
+
+  if (!Number.isFinite(config.enc.pbkdf2Iterations) || config.enc.pbkdf2Iterations < 1000) {
+    throw new Error("ENC_PBKDF2_ITERATIONS harus angka dan minimal 1000.");
+  }
+
   if (config.mail.driver === "ses") {
     const missing = [
       ["AWS_ACCESS_KEY_ID", config.ses.accessKeyId],

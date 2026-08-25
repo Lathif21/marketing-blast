@@ -34,6 +34,18 @@ export default defineConfig({
     },
   },
 
+  // Dev server meneruskan /api ke Fastify supaya tidak ada urusan CORS, dan
+  // supaya jalur yang dipakai saat pengembangan sama dengan saat produksi.
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET ?? 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

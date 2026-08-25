@@ -24,6 +24,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Sekali jalan, sebelum api dan worker. Dipisah supaya dua service tidak
+  # bermigrasi bersamaan -- dan supaya migrasi berjalan sebagai PEMILIK skema,
+  # bukan sebagai peran aplikasi yang memang tidak boleh mengubah struktur.
+  migrate:
+    build:
+      context: ./apps/api
+    command: ["node", "dist/migrate.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_DB_USER: ${APP_DB_USER:-blast_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build:
       context: ./apps/api
@@ -32,6 +50,13 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_DATABASE_URL: postgres://${APP_DB_USER:-blast_app}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_DB_USER: ${APP_DB_USER:-blast_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET}
+      ENC_SALT_BYTES: ${ENC_SALT_BYTES:-16}
+      ENC_PBKDF2_ITERATIONS: ${ENC_PBKDF2_ITERATIONS:-480000}
       MAIL_DRIVER: ${MAIL_DRIVER:-dummy}
       MAIL_OUTBOX_DIR: /app/var/outbox
       SENDER_DOMAIN: ${SENDER_DOMAIN}
@@ -51,6 +76,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${API_HOST_PORT:-3000}:3000"
     healthcheck:
@@ -70,6 +97,13 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_DATABASE_URL: postgres://${APP_DB_USER:-blast_app}:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}
+      APP_DB_USER: ${APP_DB_USER:-blast_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET}
+      ENC_SALT_BYTES: ${ENC_SALT_BYTES:-16}
+      ENC_PBKDF2_ITERATIONS: ${ENC_PBKDF2_ITERATIONS:-480000}
       MAIL_DRIVER: ${MAIL_DRIVER:-dummy}
       MAIL_OUTBOX_DIR: /app/var/outbox
       SENDER_DOMAIN: ${SENDER_DOMAIN}
@@ -87,6 +121,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:

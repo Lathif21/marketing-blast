@@ -1,39 +1,60 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Eye, Search } from "lucide-react";
+import { EmptyRow, ErrorRow, LoadingRow } from "../components/AsyncState";
 import { SectionTitle } from "../components/SectionTitle";
 import { StatusBadge } from "../components/StatusBadge";
 import { Th } from "../components/Th";
 import { Mono, Num } from "../components/Typography";
-import { CONTACTS, QUARANTINE_REASON } from "../lib/mock";
+import { listContacts } from "../lib/api";
+import { QUARANTINE_REASON } from "../lib/mock";
+import { CONSENT_LABELS, CONSENT_SOURCES, type ConsentSource, type ContactStatus } from "../lib/types";
+import { useAsync } from "../lib/useAsync";
 
 const FILTERS = ["semua", "aktif", "karantina", "diblokir"] as const;
 
-export function ContactsScreen() {
+export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => void }) {
   const [statusFilter, setStatusFilter] = useState<string>("semua");
+  const [consentFilter, setConsentFilter] = useState<string>("semua");
   const [search, setSearch] = useState("");
+  const [debounced, setDebounced] = useState("");
 
-  const filtered = CONTACTS.filter((c) => {
-    if (statusFilter !== "semua" && c.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!c.company.toLowerCase().includes(q) && !c.email.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  // Menunda pencarian supaya mengetik tidak memicu satu permintaan per huruf.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const countBy = (s: string) => CONTACTS.filter((c) => c.status === s).length;
+  const query = useMemo(
+    () => ({
+      status: statusFilter === "semua" ? undefined : (statusFilter as ContactStatus),
+      consent_source:
+        consentFilter === "semua" ? undefined : (consentFilter as ConsentSource),
+      search: debounced.trim() || undefined,
+      per_page: 100,
+    }),
+    [statusFilter, consentFilter, debounced],
+  );
+
+  const { status, data, error, reload } = useAsync(() => listContacts(query), [query]);
+  const items = data?.items ?? [];
+  const adaFilter = statusFilter !== "semua" || consentFilter !== "semua" || debounced.trim() !== "";
 
   return (
     <div className="p-6">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4 gap-4">
         <div>
           <SectionTitle label="Daftar Kontak" />
           <p className="text-xs text-muted-foreground -mt-3">
-            <Num>{countBy("aktif")}</Num> aktif · <Num>{countBy("karantina")}</Num> karantina ·{" "}
-            <Num>{countBy("diblokir")}</Num> diblokir
+            {data ? (
+              <>
+                <Num>{data.total.toLocaleString("id-ID")}</Num> kontak cocok dengan filter saat ini
+              </>
+            ) : (
+              "Memuat…"
+            )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <div className="relative">
             <Search
               size={12}
@@ -48,6 +69,18 @@ export function ContactsScreen() {
               style={{ caretColor: "#c4824a" }}
             />
           </div>
+          <select
+            value={consentFilter}
+            onChange={(e) => setConsentFilter(e.target.value)}
+            className="bg-card border border-border rounded-sm px-2 py-1.5 text-xs text-foreground outline-none"
+          >
+            <option value="semua">Semua sumber izin</option>
+            {CONSENT_SOURCES.map((c) => (
+              <option key={c} value={c}>
+                {CONSENT_LABELS[c]}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-1">
             {FILTERS.map((f) => (
               <button
@@ -68,75 +101,117 @@ export function ContactsScreen() {
       </div>
 
       <div className="bg-card border border-border rounded-sm overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border">
-              <Th>Perusahaan</Th>
-              <Th>Email</Th>
-              <Th>Sumber Izin</Th>
-              <Th>Status</Th>
-              <Th>Tanggal Impor</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((c) => (
-              <tr
-                key={c.id}
-                className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors"
-                style={{
-                  backgroundColor:
-                    c.status === "karantina"
-                      ? "rgba(180,120,30,0.05)"
-                      : c.status === "diblokir"
-                        ? "rgba(140,46,46,0.05)"
-                        : undefined,
-                  borderLeft:
-                    c.status === "karantina"
-                      ? "2px solid rgba(212,160,64,0.45)"
-                      : c.status === "diblokir"
-                        ? "2px solid rgba(224,82,82,0.45)"
-                        : "2px solid transparent",
-                }}
-              >
-                <td className="px-3 py-2 font-medium text-foreground">{c.company}</td>
-                <td className="px-3 py-2">
-                  <Mono className="text-muted-foreground">{c.email}</Mono>
-                </td>
-                <td className="px-3 py-2 text-muted-foreground">{c.consent}</td>
-                <td className="px-3 py-2">
-                  {/*
-                    Peringatan dipicu asal alamat, bukan sumber izin. Alamat hasil
-                    tebakan adalah penyebab utama pemantulan keras — itulah yang
-                    membuat kontak dikarantina (04-aturan-kepatuhan.md §4).
-                  */}
-                  <span className="inline-flex items-center gap-1.5">
-                    <StatusBadge status={c.status} />
-                    {c.emailOrigin === "guessed" && (
-                      <span className="inline-flex" title={QUARANTINE_REASON}>
-                        <AlertTriangle size={11} style={{ color: "#d4a040", flexShrink: 0 }} />
-                      </span>
-                    )}
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <Num className="text-muted-foreground">{c.date}</Num>
-                </td>
-                <td className="px-3 py-2">
-                  <button className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Eye size={13} />
+        {status === "gagal" && items.length === 0 ? (
+          <ErrorRow message={error} onRetry={reload} />
+        ) : status === "memuat" && items.length === 0 ? (
+          <LoadingRow />
+        ) : items.length === 0 ? (
+          adaFilter ? (
+            <EmptyRow
+              title="Tidak ada kontak yang cocok"
+              hint="Longgarkan filter atau kosongkan kolom pencarian."
+              action={
+                <button
+                  onClick={() => {
+                    setStatusFilter("semua");
+                    setConsentFilter("semua");
+                    setSearch("");
+                  }}
+                  className="px-3 py-1.5 text-xs border border-border rounded-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Bersihkan filter
+                </button>
+              }
+            />
+          ) : (
+            <EmptyRow
+              title="Belum ada kontak"
+              hint="Impor daftar kontak dari berkas CSV atau keluaran terenkripsi Contact Harvester untuk mulai menyusun kampanye."
+              action={
+                onNavigate && (
+                  <button
+                    onClick={() => onNavigate("import")}
+                    className="px-3 py-1.5 text-xs rounded-sm"
+                    style={{ backgroundColor: "#c4824a", color: "#fff" }}
+                  >
+                    Impor Kontak
                   </button>
-                </td>
+                )
+              }
+            />
+          )
+        ) : (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border">
+                <Th>Perusahaan</Th>
+                <Th>Email</Th>
+                <Th>Sumber Izin</Th>
+                <Th>Status</Th>
+                <Th>Tanggal Impor</Th>
+                <Th />
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="py-10 text-center text-xs text-muted-foreground">
-            Tidak ada kontak yang cocok.
-          </div>
+            </thead>
+            <tbody>
+              {items.map((c) => (
+                <tr
+                  key={c.id}
+                  className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors"
+                  style={{
+                    backgroundColor:
+                      c.status === "karantina"
+                        ? "rgba(180,120,30,0.05)"
+                        : c.status === "diblokir"
+                          ? "rgba(140,46,46,0.05)"
+                          : undefined,
+                    borderLeft:
+                      c.status === "karantina"
+                        ? "2px solid rgba(212,160,64,0.45)"
+                        : c.status === "diblokir"
+                          ? "2px solid rgba(224,82,82,0.45)"
+                          : "2px solid transparent",
+                  }}
+                >
+                  <td className="px-3 py-2 font-medium text-foreground">{c.company}</td>
+                  <td className="px-3 py-2">
+                    <Mono className="text-muted-foreground">{c.email}</Mono>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{CONSENT_LABELS[c.consent]}</td>
+                  <td className="px-3 py-2">
+                    {/*
+                      Peringatan dipicu asal alamat, bukan sumber izin. Alamat hasil
+                      tebakan adalah penyebab utama pemantulan keras — itulah yang
+                      membuat kontak dikarantina (04-aturan-kepatuhan.md §4).
+                    */}
+                    <span className="inline-flex items-center gap-1.5">
+                      <StatusBadge status={c.status} />
+                      {c.emailOrigin === "guessed" && (
+                        <span className="inline-flex" title={QUARANTINE_REASON}>
+                          <AlertTriangle size={11} style={{ color: "#d4a040", flexShrink: 0 }} />
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Num className="text-muted-foreground">{c.date}</Num>
+                  </td>
+                  <td className="px-3 py-2">
+                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                      <Eye size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
+
+      {status === "gagal" && items.length > 0 && (
+        <p className="mt-2 text-xs" style={{ color: "#d4a040" }}>
+          Gagal menyegarkan: {error}. Yang tampil di atas adalah data terakhir yang berhasil dimuat.
+        </p>
+      )}
     </div>
   );
 }

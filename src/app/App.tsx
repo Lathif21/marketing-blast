@@ -26,7 +26,7 @@ export default function App() {
         >
           {screen === "dashboard" && <DashboardScreen onNavigate={setScreen} />}
           {screen === "import" && <ImportScreen />}
-          {screen === "contacts" && <ContactsScreen />}
+          {screen === "contacts" && <ContactsScreen onNavigate={setScreen} />}
           {screen === "builder" && <CampaignBuilderScreen />}
           {screen === "report" && <ReportScreen />}
           {screen === "suppression" && <SuppressionScreen />}
