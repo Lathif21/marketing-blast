@@ -25,6 +25,42 @@ export function Num({ children, className = "", style, title }: SpanProps) {
   );
 }
 
+/**
+ * Teks panjang yang dipotong dengan elipsis, dengan teks utuh tetap dapat
+ * dibaca lewat tooltip.
+ *
+ * Tiga hal yang membuatnya perlu jadi komponen sendiri:
+ *
+ * 1. `truncate` yang dipasang langsung pada `<td>` tidak dapat diandalkan —
+ *    `table-layout: auto` mengabaikan `max-width` pada sel. Pemotongan harus
+ *    terjadi pada elemen blok DI DALAM sel.
+ * 2. `title` wajib ikut. Memotong teks tanpa menyediakan cara melihat versi
+ *    utuhnya berarti menghilangkan informasi, dan nama perusahaan adalah hal
+ *    yang justru dicari pengguna saat memindai tabel.
+ * 3. Tinggi baris jadi seragam, yang menjaga kerapatan tabel — dan kerapatan
+ *    itu fitur, bukan kebetulan (05-revisi-desain.md).
+ */
+export function Truncate({
+  children,
+  maxWidth,
+  className = "",
+}: {
+  children: string;
+  /** Lebar maksimum sebelum dipotong, misalnya `"240px"`. */
+  maxWidth: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`truncate ${className}`}
+      style={{ maxWidth }}
+      title={children}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** Alamat email, domain, pengenal teknis, nama berkas. */
 export function Mono({ children, className = "", style, title }: SpanProps) {
   return (

@@ -2,7 +2,7 @@ import { DomainHealthPanel } from "../components/DomainHealthPanel";
 import { SectionTitle } from "../components/SectionTitle";
 import { StatusBadge } from "../components/StatusBadge";
 import { Th } from "../components/Th";
-import { Mono, Num, PanelLabel } from "../components/Typography";
+import { Mono, Num, PanelLabel, Truncate } from "../components/Typography";
 import { CAMPAIGNS, CONTACT_DISTRIBUTION } from "../lib/mock";
 import type { Screen } from "../lib/types";
 
@@ -55,8 +55,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => voi
                       <td className="px-3 py-2">
                         <Mono className="text-muted-foreground">{c.id}</Mono>
                       </td>
-                      <td className="px-3 py-2 font-medium text-foreground max-w-[180px] truncate">
-                        {c.name}
+                      <td className="px-3 py-2 font-medium text-foreground">
+                        <Truncate maxWidth="180px">{c.name}</Truncate>
                       </td>
                       <td className="px-3 py-2">
                         <StatusBadge status={c.status} />
