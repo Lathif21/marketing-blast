@@ -72,6 +72,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const body = res.status === 204 ? null : await res.json().catch(() => null);
 
   if (!res.ok) {
+    // Sesi berakhir di tengah pemakaian — kedaluwarsa, atau dicabut karena
+    // pelanggannya dibekukan. Disiarkan sebagai kejadian supaya App dapat
+    // kembali ke layar masuk sekaligus; tanpa itu, yang terlihat pengguna
+    // adalah layar yang setiap tombolnya gagal tanpa penjelasan.
+    //
+    // `/auth/me` dikecualikan: pemeriksaan sesi saat aplikasi baru dibuka
+    // memang wajar menjawab 401, dan menyiarkannya di sana hanya membuat
+    // pemuatan pertama menyiarkan "sesi habis" untuk sesi yang belum pernah
+    // ada.
+    if (res.status === 401 && !path.startsWith("/auth/")) {
+      window.dispatchEvent(new Event("mb:sesi-habis"));
+    }
+
     const asObject = body as { error?: string; pesan?: string; message?: string } | null;
     const message =
       asObject?.error ?? asObject?.pesan ?? asObject?.message ?? `${res.status} ${res.statusText}`;
@@ -134,6 +147,43 @@ export async function listContacts(query: ContactQuery = {}): Promise<Paginated<
   const result = await request<Paginated<ApiContact>>(`/contacts${qs ? `?${qs}` : ""}`);
   return { ...result, items: result.items.map(toContact) };
 }
+
+export type AlasanTolakAktivasi =
+  | "tidak_ditemukan"
+  | "sudah_aktif"
+  | "diblokir"
+  | "ada_di_penekanan"
+  | "alamat_tebakan";
+
+export interface HasilAktivasi {
+  diaktifkan: number;
+  ditolak: { id: string; email: string | null; alasan: AlasanTolakAktivasi }[];
+  ringkasan: Record<AlasanTolakAktivasi, number>;
+}
+
+/**
+ * Mengaktifkan kontak karantina.
+ *
+ * `izinkanTebakan` membuka alamat hasil tebakan. Ia TIDAK melonggarkan
+ * penolakan lain: kontak diblokir dan alamat yang sudah ditekan tetap ditolak
+ * server, apa pun yang dikirim UI.
+ */
+export const activateContacts = (
+  ids: string[],
+  dinyatakanOleh: string,
+  izinkanTebakan = false,
+) =>
+  request<HasilAktivasi>("/contacts/activate", {
+    method: "POST",
+    body: json({ ids, dinyatakan_oleh: dinyatakanOleh, izinkan_tebakan: izinkanTebakan }),
+  });
+
+/** Mengembalikan kontak aktif ke karantina. */
+export const quarantineContacts = (ids: string[]) =>
+  request<{ dikarantina: number }>("/contacts/quarantine", {
+    method: "POST",
+    body: json({ ids }),
+  });
 
 export const getContactDistribution = () =>
   request<{ aktif: number; karantina: number; diblokir: number }>("/contacts/distribution");
@@ -245,13 +295,14 @@ export type Ketersediaan = "tersedia" | "belum_ada_pengiriman" | "belum_terpasan
  */
 export interface DomainHealth {
   domain: string;
+  sender: { name: string; address: string; postal_address: string };
   warmup: {
     stage: number;
     total_stages: number;
     daily_limit: number | null;
     sent_today: number;
     remaining_today: number | null;
-    days_sending: number | null;
+    total_terkirim: number;
   };
   reputation: {
     bounce_rate_7d: number | null;
@@ -272,6 +323,76 @@ export interface DomainHealth {
 
 export const getDomainHealth = () => request<DomainHealth>("/domain/health");
 
+// ─── Kampanye ────────────────────────────────────────────────────────────────
+
+export interface Campaign2 {
+  id: string;
+  name: string;
+  subject: string;
+  status: string;
+}
+
+export const createCampaign = (input: {
+  name: string;
+  subject: string;
+  body_text: string;
+  contact_ids: string[];
+}) =>
+  request<Campaign2>("/campaigns", {
+    method: "POST",
+    body: json({
+      name: input.name,
+      subject: input.subject,
+      body_text: input.body_text,
+      // Penerima dipilih satu per satu, bukan lewat segmen. Daftar kosong
+      // berarti tidak ada penerima — server tidak menafsirkannya sebagai
+      // "kirim ke semua".
+      segment_filter: { contact_ids: input.contact_ids },
+    }),
+  });
+
+export type ButirPreflight =
+  | "identitas_pengirim"
+  | "tautan_berhenti"
+  | "penekanan_dikeluarkan"
+  | "karantina_dikeluarkan"
+  | "batas_pemanasan"
+  | "sumber_izin"
+  | "penanda_terisi";
+
+export interface HasilPreflight {
+  dapat_dikirim: boolean;
+  pemeriksaan: {
+    butir: ButirPreflight;
+    lolos: boolean;
+    peringatan?: boolean;
+    jumlah?: number;
+    pesan?: string;
+  }[];
+  ringkasan: {
+    kandidat: number;
+    layak_kirim: number;
+    tersuppress: number;
+    terkarantina: number;
+    sisa_kuota: number | null;
+    tahap_pemanasan: number;
+    tanggal_muat: string | null;
+  };
+}
+
+/**
+ * Pemeriksaan pra-kirim dijalankan server. Hasilnya mengikat: butir yang gagal
+ * memblokir pengiriman, dan UI tidak boleh menawarkan jalan pintas.
+ */
+export const preflightCampaign = (id: string) =>
+  request<HasilPreflight>(`/campaigns/${id}/preflight`, { method: "POST" });
+
+export const sendCampaign = (id: string) =>
+  request<{ diantrekan: number; dilewati: number; catatan: string }>(
+    `/campaigns/${id}/send`,
+    { method: "POST" },
+  );
+
 // ─── Belum ada di server (Fase 2) ────────────────────────────────────────────
 
 export interface CampaignReport {
@@ -282,3 +403,302 @@ export interface CampaignReport {
 
 export const getCampaignReport = (campaignId: string) =>
   request<CampaignReport>(`/campaigns/${campaignId}/report`);
+
+// ─── Tindak lanjut ───────────────────────────────────────────────────────────
+
+export type Pemicu = "membalas" | "diklik" | "dibuka" | "apa_saja";
+
+export type Respons = "belum_ada" | "menunggu" | "tertarik" | "menolak" | "diam";
+
+export interface CampaignRingkas {
+  id: string;
+  name: string;
+  subject: string;
+  status: string;
+  parent_campaign_id: string | null;
+  pemicu: Pemicu | null;
+  jeda_lanjutan_jam: number;
+  lanjutan_aktif: boolean;
+  created_at: string;
+}
+
+export const listCampaigns = (page = 1, perPage = 50) =>
+  request<Paginated<CampaignRingkas>>(`/campaigns?page=${page}&per_page=${perPage}`);
+
+export interface RingkasanTindakLanjut {
+  terkirim: number;
+  membalas: number;
+  diklik: number;
+  dibuka: number;
+  /** Bereaksi dengan cara apa pun. BUKAN penjumlahan tiga angka di atas —
+   *  satu orang bisa membuka lalu mengklik lalu membalas. */
+  bereaksi: number;
+  menolak: number;
+  diam: number;
+  menunggu: number;
+}
+
+export interface TindakLanjut {
+  campaign: { id: string; name: string; status: string };
+  jendela_diam_hari: number;
+  ringkasan: RingkasanTindakLanjut;
+  pemicu_tersedia: { nilai: Pemicu; label: string }[];
+  lanjutan: CampaignRingkas[];
+}
+
+export const getTindakLanjut = (campaignId: string) =>
+  request<TindakLanjut>(`/campaigns/${campaignId}/tindak-lanjut`);
+
+/**
+ * Membuat kampanye tindak lanjut.
+ *
+ * Tidak ada `contact_ids` di sini, dan itu inti fiturnya: yang menentukan
+ * penerima adalah `pemicu`, sehingga orang yang bereaksi minggu depan ikut
+ * terjaring tanpa ada yang perlu menyusun ulang daftarnya.
+ */
+export const createFollowUp = (
+  campaignId: string,
+  input: {
+    name: string;
+    subject: string;
+    body_text: string;
+    pemicu: Pemicu;
+    jeda_lanjutan_jam: number;
+  },
+) =>
+  request<CampaignRingkas>(`/campaigns/${campaignId}/tindak-lanjut`, {
+    method: "POST",
+    body: json(input),
+  });
+
+/** Menyalakan atau menghentikan pendaftaran bergulir tanpa membatalkan kampanyenya. */
+export const ubahPendaftaran = (campaignId: string, aktif: boolean) =>
+  request<CampaignRingkas>(`/campaigns/${campaignId}/pendaftaran`, {
+    method: "POST",
+    body: json({ aktif }),
+  });
+
+/**
+ * Menandai bahwa seseorang membalas.
+ *
+ * Jalur manual, untuk balasan yang mendarat di kotak masuk biasa tim pemasaran
+ * alih-alih di alamat yang terpasang aturan penerimaan SES.
+ */
+export const catatBalasan = (campaignId: string, email: string, cuplikan?: string) =>
+  request<{ recipient_id: string; campaign_id: string }>(`/campaigns/${campaignId}/balasan`, {
+    method: "POST",
+    body: json({ email, cuplikan }),
+  });
+
+// ─── Retensi kontak tanpa respons ────────────────────────────────────────────
+
+export const getRingkasanRespons = () =>
+  request<{
+    jendela_diam_hari: number;
+    ringkasan: Record<Respons, number>;
+    label: Record<Respons, string>;
+  }>("/contacts/respons");
+
+export interface KontakDiam {
+  id: string;
+  email: string;
+  company_name: string | null;
+  last_sent_at: string | null;
+  hari_diam: number;
+}
+
+export const listKontakDiam = (page = 1, perPage = 50) =>
+  request<Paginated<KontakDiam> & { jendela_diam_hari: number }>(
+    `/contacts/retensi?page=${page}&per_page=${perPage}`,
+  );
+
+/**
+ * Menghapus kontak tanpa respons. Menuntut nama pelakunya dengan alasan yang
+ * sama seperti aktivasi: penilaian manusia yang tidak dapat dibatalkan perlu
+ * meninggalkan catatan.
+ *
+ * Server tetap menolak id yang bukan berstatus `diam`, apa pun yang dikirim
+ * layar ini.
+ */
+export const hapusKontakDiam = (ids: string[], dinyatakanOleh: string) =>
+  request<{ dihapus: number; dilewati: number }>("/contacts/retensi/hapus", {
+    method: "POST",
+    body: json({ ids, dinyatakan_oleh: dinyatakanOleh }),
+  });
+
+// ─── Sesi ────────────────────────────────────────────────────────────────────
+//
+// Token sesi hidup di cookie `HttpOnly`, jadi tidak ada token yang dipegang
+// berkas ini — dan tidak ada yang dapat dibaca skrip pihak ketiga yang
+// tersisip. Peramban melampirkannya sendiri karena SPA dan API berada pada
+// origin yang sama (vite mem-proksi `/api`).
+
+export type Peran = "superadmin" | "admin" | "operator";
+export type StatusTenant = "aktif" | "dibekukan" | "nonaktif";
+
+export interface SesiSaya {
+  id: string;
+  email: string;
+  nama: string;
+  peran: Peran;
+  /** `null` untuk superadmin yang belum masuk sebagai pelanggan mana pun. */
+  tenant: {
+    id: string;
+    nama: string;
+    slug: string;
+    status: StatusTenant;
+    alasan_beku: string | null;
+  } | null;
+  impersonasi: { tenantId: string; nama: string | null; slug: string | null } | null;
+}
+
+export const login = (email: string, sandi: string) =>
+  request<SesiSaya>("/auth/login", { method: "POST", body: json({ email, sandi }) });
+
+export const logout = () => request<{ keluar: boolean }>("/auth/logout", { method: "POST" });
+
+/**
+ * Siapa yang sedang masuk. Melempar `ApiError` 401 bila belum — pemanggilnya
+ * yang memutuskan itu berarti "tampilkan layar masuk", bukan "galat".
+ */
+export const sesiSaya = () => request<SesiSaya>("/auth/me");
+
+// ─── Kendali superadmin ──────────────────────────────────────────────────────
+
+export interface RingkasanTenant {
+  id: string;
+  nama: string;
+  slug: string;
+  status: StatusTenant;
+  kuota_kontak: number | null;
+  catatan: string | null;
+  alasan_beku: string | null;
+  dibekukan_pada: string | null;
+  dibekukan_oleh: string | null;
+  created_at: string;
+  domain: string | null;
+  warmup_stage: number | null;
+  kontak: number;
+  kontak_aktif: number;
+  kampanye: number;
+  penekanan: number;
+  pengguna: number;
+  terkirim_7h: number;
+  bounce_7h: number;
+  keluhan_7h: number;
+  /** `null` berarti belum ada pengiriman 7 hari terakhir — BUKAN 0%. */
+  bounce_rate_7h: number | null;
+  complaint_rate_7h: number | null;
+}
+
+export const listTenants = () => request<{ items: RingkasanTenant[] }>("/admin/tenants");
+
+export const createTenant = (input: {
+  nama: string;
+  slug: string;
+  kuota_kontak: number | null;
+  admin: { email: string; nama: string; sandi: string };
+}) => request<{ tenant: RingkasanTenant }>("/admin/tenants", { method: "POST", body: json(input) });
+
+export const updateTenant = (
+  id: string,
+  patch: { nama?: string; kuota_kontak?: number | null; catatan?: string | null },
+) => request<RingkasanTenant>(`/admin/tenants/${id}`, { method: "PATCH", body: json(patch) });
+
+/** Alasan wajib — pelanggan melihatnya di layarnya sendiri. */
+export const bekukanTenant = (id: string, alasan: string) =>
+  request<{ sesi_dicabut: number }>(`/admin/tenants/${id}/bekukan`, {
+    method: "POST",
+    body: json({ alasan }),
+  });
+
+export const aktifkanTenant = (id: string) =>
+  request<unknown>(`/admin/tenants/${id}/aktifkan`, { method: "POST" });
+
+export const nonaktifkanTenant = (id: string) =>
+  request<unknown>(`/admin/tenants/${id}/nonaktifkan`, { method: "POST" });
+
+export interface PenggunaTenant {
+  id: string;
+  email: string;
+  nama: string;
+  peran: Peran;
+  aktif: boolean;
+  last_login_at: string | null;
+}
+
+export const listPengguna = (tenantId: string) =>
+  request<{ items: PenggunaTenant[] }>(`/admin/tenants/${tenantId}/pengguna`);
+
+export const createPengguna = (
+  tenantId: string,
+  input: { email: string; nama: string; sandi: string; peran: "admin" | "operator" },
+) =>
+  request<PenggunaTenant>(`/admin/tenants/${tenantId}/pengguna`, {
+    method: "POST",
+    body: json(input),
+  });
+
+export const ubahAktifPengguna = (id: string, aktif: boolean) =>
+  request<PenggunaTenant>(`/admin/pengguna/${id}/aktif`, { method: "POST", body: json({ aktif }) });
+
+export const setelSandiPengguna = (id: string, sandi: string) =>
+  request<{ disetel: boolean }>(`/admin/pengguna/${id}/sandi`, {
+    method: "POST",
+    body: json({ sandi }),
+  });
+
+/**
+ * Pratinjau data satu pelanggan. Setiap pemanggilan tercatat di jejak audit
+ * atas nama superadmin yang membukanya — server yang mencatat, bukan layar
+ * ini, supaya tidak mungkin membaca tanpa tercatat.
+ */
+export const pratinjauTenant = (id: string) =>
+  request<{
+    tenant: { id: string; nama: string; slug: string };
+    kontak: {
+      email: string;
+      company_name: string | null;
+      status: string;
+      respons: string;
+      imported_at: string;
+    }[];
+    kampanye: { id: string; name: string; subject: string; status: string; created_at: string }[];
+    catatan: string;
+  }>(`/admin/tenants/${id}/pratinjau`);
+
+export const mulaiImpersonasi = (tenantId: string) =>
+  request<{ masuk_sebagai: { id: string; nama: string; slug: string } }>("/admin/impersonasi", {
+    method: "POST",
+    body: json({ tenant_id: tenantId }),
+  });
+
+export const keluarImpersonasi = () =>
+  request<{ keluar: boolean }>("/admin/impersonasi/keluar", { method: "POST" });
+
+export interface BarisAudit {
+  id: string;
+  actor_email: string;
+  tenant_slug: string | null;
+  aksi: string;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+export const listAudit = (page = 1, perPage = 50) =>
+  request<Paginated<BarisAudit>>(`/admin/audit?page=${page}&per_page=${perPage}`);
+
+export const LABEL_AKSI: Record<string, string> = {
+  tenant_dibuat: "Pelanggan dibuat",
+  tenant_diubah: "Pelanggan diubah",
+  tenant_dibekukan: "Pengiriman dibekukan",
+  tenant_diaktifkan: "Pelanggan diaktifkan",
+  tenant_dinonaktifkan: "Pelanggan dinonaktifkan",
+  pengguna_dibuat: "Pengguna dibuat",
+  pengguna_dinonaktifkan: "Pengguna dinonaktifkan",
+  pengguna_diaktifkan: "Pengguna diaktifkan",
+  sandi_disetel: "Kata sandi disetel",
+  impersonasi_mulai: "Masuk sebagai pelanggan",
+  impersonasi_selesai: "Keluar dari pelanggan",
+  data_pelanggan_dilihat: "Data pelanggan dilihat",
+};

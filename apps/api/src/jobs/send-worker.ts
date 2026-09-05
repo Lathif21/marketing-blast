@@ -14,7 +14,7 @@
 //    lain yang ikut mengirim, batas tetap ditegakkan.
 
 import type { PoolClient } from "pg";
-import { pool, transaction } from "../db.js";
+import { clientKonteks, query, transaction } from "../db.js";
 import { kuotaHariIni, pakaiKuota } from "../domain/quota.js";
 import { mailDriver } from "../mail/index.js";
 import { createUnsubscribeToken } from "../lib/tokens.js";
@@ -30,11 +30,13 @@ interface KampanyeAktif {
   body_text: string;
   body_html: string | null;
   sender_domain: string;
+  /** Kampanye tindak lanjut yang masih mendaftarkan penerima baru. */
+  lanjutan_aktif: boolean;
 }
 
 async function kampanyeAktif(client: PoolClient): Promise<KampanyeAktif[]> {
   const { rows } = await client.query<KampanyeAktif>(
-    `SELECT id, subject, body_text, body_html, sender_domain
+    `SELECT id, subject, body_text, body_html, sender_domain, lanjutan_aktif
        FROM campaigns
       WHERE status IN ('terjadwal', 'berjalan')
         AND (scheduled_at IS NULL OR scheduled_at <= now())
@@ -142,13 +144,7 @@ class KuotaHabis extends Error {
 }
 
 export async function runSendWorker(): Promise<void> {
-  const client = await pool.connect();
-  let kampanyeList: KampanyeAktif[];
-  try {
-    kampanyeList = await kampanyeAktif(client);
-  } finally {
-    client.release();
-  }
+  const kampanyeList = await kampanyeAktif(await clientKonteks());
 
   if (kampanyeList.length === 0) return;
 
@@ -229,11 +225,18 @@ export async function runSendWorker(): Promise<void> {
     }
 
     // Kampanye dinyatakan selesai hanya kalau tidak ada lagi baris `queued`.
-    const { rows } = await pool.query<{ sisa: string }>(
+    //
+    // Kampanye tindak lanjut yang pendaftarannya masih bergulir dikecualikan.
+    // Antreannya memang kosong hampir sepanjang waktu — penerima baru masuk
+    // hanya saat ada yang bereaksi. Menyatakannya `selesai` pada saat itu
+    // akan menutup pendaftaran selamanya, karena `susunAntrean` menolak
+    // kampanye berstatus `selesai`: satu balasan yang datang sejam kemudian
+    // tidak akan pernah ditindaklanjuti.
+    const { rows } = await query<{ sisa: string }>(
       "SELECT count(*)::text AS sisa FROM campaign_recipients WHERE campaign_id = $1 AND status = 'queued'",
       [kampanye.id],
     );
-    if (Number(rows[0].sisa) === 0) {
+    if (Number(rows[0].sisa) === 0 && !kampanye.lanjutan_aktif) {
       await ubahStatus(kampanye.id, "selesai");
     }
 

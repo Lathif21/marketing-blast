@@ -1,5 +1,81 @@
 # 02 — Model Data
 
+## Multi-tenant
+
+Satu instalasi melayani banyak pelanggan. Setiap tabel data pelanggan memuat
+`tenant_id`, dan penyaringannya **tidak** diserahkan ke query.
+
+| Lapisan | Yang menegakkan |
+|---|---|
+| Baca, ubah, hapus | Policy Row Level Security `tenant_id = app_tenant()` |
+| Sisip | `DEFAULT app_tenant()` pada kolom `tenant_id` |
+| Konteks koneksi | `dalamKonteks()` di `src/db.ts` menyetel `app.tenant_id` |
+
+Akibatnya query di aplikasi tidak menyebut `tenant_id` sama sekali — bukan
+karena boleh lupa, melainkan karena database yang menambahkannya. Satu
+`WHERE tenant_id` yang lupa ditulis tidak menghasilkan galat, hanya kampanye
+yang terkirim ke orang yang salah; itu sebabnya penjagaannya tidak boleh
+tinggal di lapisan yang bisa lupa.
+
+`query()` **melempar** bila dipanggil tanpa konteks, dan itu bagian dari
+rancangannya. Alternatifnya — jatuh kembali ke kolam koneksi biasa — akan
+tetap "bekerja": RLS menyembunyikan semua baris, jadi yang muncul adalah
+daftar kosong. Penjagaan inilah yang menahan lubang autentikasi nyata saat
+fitur ini dibangun: hook sesi sempat tidak berlaku untuk sebagian rute karena
+enkapsulasi plugin Fastify, dan yang menahan permintaan tanpa sesi bukan
+pemeriksaan sesi melainkan penolakan di lapisan basis data.
+
+Tabel yang bertenant: `contacts`, `campaigns`, `campaign_recipients`,
+`suppression`, `import_batches`, `domain_health`, `domain_daily_sends`.
+
+Dua keunikan ikut berubah menjadi per pelanggan:
+
+* `contacts` unik pada `(tenant_id, email)`. Global, pelanggan kedua yang
+  mengimpor alamat yang sudah dipakai pelanggan pertama akan ditolak duplikat —
+  dan pesan galatnya sendiri membocorkan bahwa alamat itu ada di sistem.
+* `suppression` berkunci `(tenant_id, email)`. Satu daftar global melindungi
+  reputasi lebih kuat, tapi berarti penolakan yang diterima pelanggan A
+  membatasi jangkauan pelanggan B tanpa pernah disepakati siapa pun. Itu
+  keputusan kontrak, bukan keputusan skema. Sifat permanennya tidak berubah.
+
+`domain_health.domain` **tetap** unik secara global. Reputasi menempel pada
+domain, jadi dua pelanggan yang mengirim dari domain yang sama akan berbagi
+reputasi sekaligus melipatgandakan volume harian di belakang batas pemanasan
+masing-masing.
+
+### `tenants`
+
+| Kolom | Keterangan |
+|---|---|
+| `nama`, `slug` | `slug` muncul di URL dan log |
+| `status` | `aktif`, `dibekukan`, `nonaktif` |
+| `kuota_kontak` | Batas jumlah kontak; `null` = tanpa batas |
+| `alasan_beku`, `dibekukan_pada`, `dibekukan_oleh` | Jejak pembekuan |
+
+Pelanggan tidak dihapus lewat aplikasi — statusnya menjadi `nonaktif`. Hak
+`DELETE` pada tabel ini dicabut dari peran aplikasi: menghapusnya akan ikut
+menghapus seluruh kontak, kampanye, dan jejak pengiriman lewat
+`ON DELETE CASCADE`, termasuk angka pemantulan yang menjadi dasar reputasi.
+
+### `users`, `sessions`, `admin_audit`
+
+Ketiganya **tanpa** RLS, dan itu disengaja: merekalah yang menetapkan konteks
+pelanggan. Policy `tenant_id = app_tenant()` pada `users` menghasilkan
+lingkaran — konteks belum ada saat seseorang login, sehingga barisnya sendiri
+tidak terlihat, sehingga login tidak pernah bisa berhasil. Penyaringannya
+karena itu berada di `auth/`, dan hanya di sana.
+
+| Tabel | Catatan |
+|---|---|
+| `users` | `peran`: `superadmin` (tanpa tenant), `admin`, `operator`. Sandi di-hash scrypt |
+| `sessions` | Menyimpan **hash** token, bukan tokennya. `impersonasi` menunjuk pelanggan yang sedang dimasuki superadmin |
+| `admin_audit` | Hanya bertambah — `UPDATE`, `DELETE`, `TRUNCATE` dicabut dari peran aplikasi |
+
+Sesi disimpan di tabel, bukan sebagai token bertanda tangan, karena
+pencabutan seketika adalah inti fitur pembekuan: pelanggan yang dibekukan
+karena reputasinya rusak tidak boleh tetap bisa bekerja sampai tokennya habis
+sendiri.
+
 ## Tabel
 
 ### `contacts`
@@ -58,8 +134,39 @@ tinggal.
 
 ### `campaigns`, `campaign_recipients`
 
-Standar. `campaign_recipients` menyimpan status per penerima: `queued`,
-`sent`, `delivered`, `opened`, `clicked`, `bounced`, `complained`.
+`campaign_recipients` menyimpan status per penerima: `queued`, `sent`,
+`delivered`, `opened`, `clicked`, `bounced`, `complained`, ditambah
+`replied_at` dan `reply_snippet` untuk balasan masuk.
+
+`campaigns` memuat kolom tindak lanjut: `parent_campaign_id`, `pemicu`
+(`membalas`, `diklik`, `dibuka`, `apa_saja`), `jeda_lanjutan_jam`, dan
+`lanjutan_aktif`. Kampanye dengan induk tidak memilih penerimanya sendiri —
+`filterEfektif` menambahkan kriteria "penerima induk yang bereaksi sesuai
+pemicu, minimal sekian jam lalu" ke segmennya. Berantai satu tingkat saja:
+tindak lanjut dari tindak lanjut ditolak endpoint.
+
+### Penilaian respons pada `contacts`
+
+| Kolom | Keterangan |
+|---|---|
+| `respons` | `belum_ada`, `menunggu`, `tertarik`, `menolak`, `diam` |
+| `last_sent_at` | Pengiriman terakhir kepadanya |
+| `last_engaged_at` | Reaksi terakhir: buka, klik, atau balasan |
+| `respons_dinilai_pada` | Kapan `engagement-recalc` terakhir menyentuhnya |
+
+Aturannya hidup di `campaign/engagement.ts` sebagai fungsi murni, bukan
+sebagai CASE dalam SQL — `engagement-recalc` mengumpulkan faktanya di SQL lalu
+memanggil fungsi itu, sehingga yang diuji adalah yang benar-benar dijalankan.
+
+`diam` berarti tidak ada jawaban selama 30 hari, bukan penolakan. Akibatnya
+sudah berjalan tanpa penghapusan apa pun: kontaknya tidak memenuhi pemicu
+tindak lanjut mana pun. Penghapusannya manual, lewat
+`POST /contacts/retensi/hapus`, dan tercatat atas nama siapa.
+
+Pembukaan email hanya terdeteksi bila klien penerima memuat gambar pelacak,
+dan email yang dihapus tanpa dibuka tidak meninggalkan sinyal sama sekali.
+Keduanya bermuara pada `diam` — itu sebabnya `diam` tidak pernah otomatis
+menjadi penghapusan.
 
 ### `domain_health`
 

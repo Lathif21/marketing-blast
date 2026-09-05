@@ -6,9 +6,12 @@
 // dilanjutkan, butir itu bukan aturan melainkan saran.
 
 import type { PoolClient } from "pg";
-import { pool } from "../db.js";
+import { clientKonteks, konteksSaatIni } from "../db.js";
+import { bolehMengirim } from "../tenants/repo.js";
 import { kuotaHariIni, tanggalMuat } from "../domain/quota.js";
 import { penandaTidakTerisi } from "./compose.js";
+import { kondisiSegmen } from "./segment.js";
+import { filterEfektif, LABEL_PEMICU, type Pemicu } from "./followup.js";
 
 export type ButirId =
   | "identitas_pengirim"
@@ -17,7 +20,9 @@ export type ButirId =
   | "karantina_dikeluarkan"
   | "penerima_ada"
   | "batas_pemanasan"
-  | "penanda_terisi";
+  | "penanda_terisi"
+  | "pemicu_lanjutan"
+  | "pelanggan_aktif";
 
 export interface Butir {
   butir: ButirId;
@@ -60,17 +65,9 @@ export async function hitungAudiens(
   client: PoolClient,
   segmentFilter: Record<string, unknown>,
 ): Promise<Hitungan> {
-  const kondisi: string[] = ["1 = 1"];
-  const params: unknown[] = [];
-
-  if (typeof segmentFilter.consent_source === "string") {
-    params.push(segmentFilter.consent_source);
-    kondisi.push(`c.consent_source = $${params.length}`);
-  }
-  if (typeof segmentFilter.domain === "string") {
-    params.push(segmentFilter.domain);
-    kondisi.push(`c.domain = $${params.length}`);
-  }
+  const segmen = kondisiSegmen(segmentFilter, 0);
+  const kondisi = ["1 = 1", ...segmen.kondisi];
+  const params = segmen.params;
 
   const where = kondisi.join(" AND ");
 
@@ -100,25 +97,65 @@ export async function hitungAudiens(
 }
 
 export async function preflight(campaignId: string): Promise<HasilPreflight> {
-  const client = await pool.connect();
-  try {
+  // Koneksi konteks, bukan koneksi baru dari kolam: variabel `app.tenant_id`
+  // menempel pada koneksi, dan koneksi baru tidak akan melihat satu baris pun.
+  const client = await clientKonteks();
+  {
     const { rows } = await client.query<{
       subject: string;
       body_text: string;
       sender_domain: string;
       segment_filter: Record<string, unknown>;
+      parent_campaign_id: string | null;
+      pemicu: Pemicu | null;
+      jeda_lanjutan_jam: number;
+      nama_induk: string | null;
+      terkirim_induk: string;
     }>(
-      `SELECT subject, body_text, sender_domain, segment_filter
-         FROM campaigns WHERE id = $1`,
+      `SELECT c.subject, c.body_text, c.sender_domain, c.segment_filter,
+              c.parent_campaign_id, c.pemicu, c.jeda_lanjutan_jam,
+              induk.name AS nama_induk,
+              (SELECT count(*)::text FROM campaign_recipients r
+                WHERE r.campaign_id = c.parent_campaign_id
+                  AND r.sent_at IS NOT NULL) AS terkirim_induk
+         FROM campaigns c
+         LEFT JOIN campaigns induk ON induk.id = c.parent_campaign_id
+        WHERE c.id = $1`,
       [campaignId],
     );
     if (rows.length === 0) throw new Error("kampanye tidak ditemukan");
     const c = rows[0];
 
-    const audiens = await hitungAudiens(client, c.segment_filter ?? {});
+    // Segmen efektif, bukan `segment_filter` mentah: kampanye tindak lanjut
+    // hanya menyasar penerima induk yang bereaksi, dan angka yang dipakai
+    // memutuskan boleh-tidaknya mengirim harus angka yang sama dengan yang
+    // benar-benar diantrekan.
+    const audiens = await hitungAudiens(client, filterEfektif(c));
     const kuota = await kuotaHariIni(c.sender_domain);
 
     const pemeriksaan: Butir[] = [];
+
+    // Pembekuan pelanggan ditegakkan DI SINI, bukan hanya di antarmuka.
+    //
+    // `send-worker` sudah melewati pelanggan yang dibekukan, jadi butir ini
+    // secara teknis berlebihan untuk menghentikan pengiriman. Ia tetap ada
+    // karena jawaban yang benar untuk "kenapa kampanye saya tidak jalan"
+    // harus muncul di tempat pengguna menekan tombol kirim — bukan hanya
+    // sebagai antrean yang tidak pernah bergerak tanpa penjelasan apa pun.
+    const tenantId = konteksSaatIni()?.tenantId;
+    if (tenantId) {
+      const izin = await bolehMengirim(tenantId);
+      pemeriksaan.push({
+        butir: "pelanggan_aktif",
+        lolos: izin.boleh,
+        pesan: izin.boleh
+          ? undefined
+          : izin.status === "dibekukan"
+            ? `Pengiriman dibekukan penyedia layanan${izin.alasan ? `: ${izin.alasan}` : "."} ` +
+              "Data Anda tetap utuh; hubungi penyedia layanan untuk melanjutkan."
+            : "Akun ini tidak aktif. Hubungi penyedia layanan.",
+      });
+    }
 
     // Identitas pengirim dan tautan berhenti berlangganan disisipkan penyusun
     // pesan, tidak diambil dari isi yang disunting pengguna. Butir ini lolos
@@ -137,6 +174,26 @@ export async function preflight(campaignId: string): Promise<HasilPreflight> {
       lolos: true,
       jumlah: audiens.terkarantina,
     });
+
+    // Butir penjelas, bukan penghalang. Kampanye lanjutan tanpa penerima
+    // gagal di `penerima_ada`, dan tanpa butir ini pesannya berbunyi "segmen
+    // tidak menghasilkan satu kontak pun" — benar, tapi tidak menjelaskan
+    // bahwa yang kurang adalah reaksi atas kampanye induk, bukan segmennya.
+    if (c.parent_campaign_id && c.pemicu) {
+      const terkirimInduk = Number(c.terkirim_induk ?? 0);
+      pemeriksaan.push({
+        butir: "pemicu_lanjutan",
+        lolos: true,
+        peringatan: true,
+        jumlah: terkirimInduk,
+        pesan:
+          `Menyasar penerima "${c.nama_induk ?? "kampanye induk"}" yang ` +
+          `${LABEL_PEMICU[c.pemicu].toLowerCase()}, minimal ${c.jeda_lanjutan_jam} jam lalu` +
+          (terkirimInduk === 0
+            ? " — kampanye induk belum mengirim satu pesan pun, jadi belum ada yang dapat bereaksi"
+            : ` (${terkirimInduk} pesan induk terkirim)`),
+      });
+    }
 
     pemeriksaan.push({
       butir: "penerima_ada",
@@ -196,7 +253,5 @@ export async function preflight(campaignId: string): Promise<HasilPreflight> {
         tanggal_muat: tanggalMuat(kuota.sisa, audiens.layak, kuota.batasHarian),
       },
     };
-  } finally {
-    client.release();
   }
 }

@@ -6,7 +6,7 @@
 // berbeda dan yang ditegakkan bukan yang ditampilkan.
 
 import type { PoolClient } from "pg";
-import { pool } from "../db.js";
+import { clientKonteks } from "../db.js";
 import { batasHarian, tanggalMuat, TAHAP_AWAL, TOTAL_STAGES } from "./warmup.js";
 
 export interface KuotaHarian {
@@ -36,8 +36,8 @@ export async function ensureDomain(client: PoolClient, domain: string): Promise<
 }
 
 export async function kuotaHariIni(domain: string): Promise<KuotaHarian> {
-  const client = await pool.connect();
-  try {
+  const client = await clientKonteks();
+  {
     await ensureDomain(client, domain);
 
     const { rows } = await client.query<{ warmup_stage: number; sent_count: string | null }>(
@@ -62,8 +62,6 @@ export async function kuotaHariIni(domain: string): Promise<KuotaHarian> {
       terpakaiHariIni: terpakai,
       sisa: batas === null ? null : Math.max(batas - terpakai, 0),
     };
-  } finally {
-    client.release();
   }
 }
 

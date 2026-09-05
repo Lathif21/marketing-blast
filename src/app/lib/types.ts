@@ -9,7 +9,9 @@ export type Screen =
   | "import"
   | "contacts"
   | "builder"
+  | "followup"
   | "report"
+  | "superadmin"
   | "suppression";
 
 export type ImportStep = 1 | 2 | 3;

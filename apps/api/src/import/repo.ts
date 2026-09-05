@@ -1,6 +1,6 @@
 // Penyimpanan hasil impor ke basis data.
 
-import { pool, transaction } from "../db.js";
+import { query, transaction } from "../db.js";
 import type { ImportSummary, ValidatedRow } from "./validate.js";
 
 export type ConsentSource =
@@ -48,7 +48,7 @@ export function consentStrengthOf(source: ConsentSource): ConsentStrength {
 /** Alamat yang sudah ada di `contacts`, dipakai menandai duplikat. */
 export async function existingAmong(emails: string[]): Promise<Set<string>> {
   if (emails.length === 0) return new Set();
-  const { rows } = await pool.query<{ email: string }>(
+  const { rows } = await query<{ email: string }>(
     "SELECT email FROM contacts WHERE email = ANY($1::citext[])",
     [emails],
   );
@@ -108,7 +108,13 @@ export async function commit(input: CommitInput): Promise<CommitResult> {
             consent_date, email_origin, status, reference_contact, address,
             acquisition_note, import_batch_id)
          VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6, $7, $8::jsonb, $9, $10, $11)
-         ON CONFLICT (email) DO NOTHING`,
+         -- Sasaran konflik mengikuti keunikan yang berlaku sejak multi-tenant:
+         -- (tenant_id, email), bukan email saja. Dibiarkan menyebut email
+         -- sendirian, Postgres menolak seluruh INSERT karena tidak ada lagi
+         -- indeks unik yang cocok - impor berhenti total, bukan diam-diam
+         -- salah. Kolom tenant_id sendiri tidak disebut di daftar kolom:
+         -- nilainya terisi DEFAULT dari konteks koneksi.
+         ON CONFLICT (tenant_id, email) DO NOTHING`,
         [
           row.email,
           row.domain,

@@ -120,7 +120,26 @@ async function ensureAppRole(client: PoolClient) {
   await client.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${roleIdent}`);
 
   // DELETE hanya pada tabel yang memang perlu dihapus barisnya.
-  await client.query(`GRANT DELETE ON contacts, import_batches, job_queue TO ${roleIdent}`);
+  //
+  // `sessions` ikut sejak multi-tenant: keluar dari akun menghapus barisnya,
+  // dan pencabutan sesi saat pelanggan dibekukan bergantung padanya.
+  await client.query(
+    `GRANT DELETE ON contacts, import_batches, job_queue, sessions TO ${roleIdent}`,
+  );
+
+  // Jejak audit hanya boleh bertambah.
+  //
+  // Alasannya sama dengan daftar penekanan: jejak yang dapat disunting oleh
+  // yang dijejaki bukan jejak. Superadmin punya kewenangan penuh atas data
+  // pelanggan, dan justru karena itu ia tidak boleh punya kewenangan atas
+  // catatan tindakannya sendiri.
+  await client.query(`REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit FROM ${roleIdent}`);
+
+  // Baris pelanggan tidak dihapus lewat aplikasi — statusnya diubah menjadi
+  // `nonaktif`. Menghapusnya akan ikut menghapus seluruh kontak, kampanye, dan
+  // jejak pengirimannya lewat ON DELETE CASCADE, termasuk angka pemantulan
+  // yang menjadi dasar reputasi domain.
+  await client.query(`REVOKE DELETE, TRUNCATE ON tenants FROM ${roleIdent}`);
 
   // Dan tidak pernah pada suppression, meski GRANT di atas sempat menyapu
   // seluruh tabel. Urutannya penting: revoke datang terakhir.

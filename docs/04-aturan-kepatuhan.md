@@ -105,6 +105,59 @@ menghasilkan dasar izin untuk kanal WhatsApp di produk terpisah.
 Pembatasan ini dinyatakan eksplisit supaya tidak ada penambahan kanal di
 kemudian hari yang memakai nomor ini tanpa dasar izin.
 
+### 6. Isolasi antar-pelanggan ditegakkan basis data
+
+Setiap tabel data pelanggan memakai Row Level Security dengan policy
+`tenant_id = app_tenant()`, dan `tenant_id` terisi dari konteks koneksi lewat
+`DEFAULT`. Query aplikasi tidak menyebut pelanggan sama sekali.
+
+Alasannya bukan kerapian. Kebocoran antar-pelanggan di produk ini bukan
+sekadar kesalahan privasi: kontak pelanggan A yang ikut terkirimi kampanye
+pelanggan B menghasilkan keluhan spam pada domain pelanggan B — dan keluhan
+itulah yang merusak reputasi. Aturan yang hanya hidup di query akan terlewat,
+dan yang terlewat tidak menghasilkan galat apa pun.
+
+Yang dibuktikan uji regresi (`npm run test:e2e`): query TANPA penyaring
+sekalipun tidak mengembalikan baris pelanggan lain, `UPDATE` dan `DELETE` ikut
+tersaring, `INSERT` mendapat pemiliknya dari konteks, dan query tanpa konteks
+ditolak alih-alih dijawab apa adanya.
+
+### 7. Kewenangan superadmin meninggalkan jejak
+
+Superadmin dapat membaca data pelanggan dan masuk sebagai pelanggan. Keduanya
+sah untuk dukungan, dan keduanya tidak dapat dibedakan dari penyalahgunaan
+tanpa catatan — yang membuat akses semacam itu dapat dipertanggungjawabkan
+bukan pembatasannya, melainkan jejaknya.
+
+| Yang dicatat | Kapan |
+|---|---|
+| `data_pelanggan_dilihat` | Setiap kali pratinjau data pelanggan dibuka |
+| `impersonasi_mulai` / `impersonasi_selesai` | Masuk dan keluar dari akun pelanggan |
+| `tenant_dibekukan` beserta alasannya | Pembekuan pengiriman |
+| Pembuatan pelanggan, pembuatan pengguna, penyetelan sandi | Selalu |
+
+Pencatatannya berada di jalur yang sama dengan pembacaannya, sehingga tidak
+mungkin membaca tanpa tercatat. Tabel `admin_audit` hanya menerima INSERT —
+hak `UPDATE` dan `DELETE` dicabut dari peran aplikasi, dengan alasan yang sama
+seperti daftar penekanan: jejak yang dapat disunting oleh yang dijejaki bukan
+jejak.
+
+Selama berimpersonasi, kendali superadmin ditutup (409). Tanpa aturan itu satu
+sesi bisa membaca data satu pelanggan sambil membekukan pelanggan lain, dan
+jejak auditnya menjadi tidak mungkin dibaca.
+
+### 8. Pembekuan berhenti pada pengiriman, bukan pada data
+
+Pelanggan yang dibekukan tetap dapat masuk dan melihat seluruh datanya,
+beserta alasan pembekuannya. Yang berhenti hanya pengiriman — ditegakkan di
+tiga tempat: pemeriksaan pra-kirim (butir `pelanggan_aktif`), penjadwalan
+worker (`tenantAktif()`), dan pencabutan sesi yang sedang berjalan.
+
+Pelanggan yang `nonaktif` tidak dapat masuk sama sekali.
+
+Membekukan berbeda dari menghapus, dan yang dibekukan justru perlu melihat
+keadaan akunnya untuk memperbaikinya.
+
 ## Pemeriksaan pra-kirim
 
 Endpoint `/campaigns/:id/preflight` menjalankan seluruh pemeriksaan dan
@@ -118,6 +171,7 @@ mengembalikan hasil per butir. Butir yang gagal memblokir pengiriman.
     { "butir": "tautan_berhenti", "lolos": true },
     { "butir": "penekanan_dikeluarkan", "lolos": true, "jumlah": 12 },
     { "butir": "karantina_dikeluarkan", "lolos": true, "jumlah": 118 },
+    { "butir": "pelanggan_aktif", "lolos": true },
     { "butir": "batas_pemanasan", "lolos": false,
       "pesan": "450 penerima melebihi sisa kuota 313" }
   ]

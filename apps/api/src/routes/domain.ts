@@ -2,57 +2,68 @@
 //
 // Aturan modul ini: TIDAK PERNAH mengarang angka.
 //
-// Sebagian metrik belum punya sumber data — tabel `campaign_recipients` belum
-// ada, dan webhook SES belum menerima apa pun. Untuk metrik itu jawabannya
-// `null`, bukan 0.
+// Angka kuota diambil dari `kuotaHariIni()` — sumber yang sama yang dipakai
+// pemeriksaan pra-kirim dan worker pengiriman. Sebelumnya rute ini menuliskan
+// `sent_today = 0` secara tetap, ditulis saat tabel `domain_daily_sends` belum
+// ada. Setelah tabelnya ada, angkanya tidak pernah disambungkan: panel
+// melaporkan sisa kuota 50 sementara pra-kirim menahan di 2. Dua angka untuk
+// hal yang sama, dan yang ditampilkan justru yang salah.
 //
-// Perbedaannya bukan soal kerapian. Bounce 0% terbaca sebagai "sangat sehat",
-// sedangkan yang sebenarnya terjadi adalah "belum ada satu pun email terkirim
-// sehingga tidak ada yang bisa diukur". Menampilkan 0 pada layar pertama yang
-// dilihat pengguna — apalagi saat produk didemokan — adalah kekeliruan yang
-// mahal justru karena angkanya terlihat meyakinkan.
-//
-// `sumber` di respons menyatakan asal setiap kelompok angka, supaya UI dapat
-// membedakan "sehat" dari "belum terukur" tanpa menebak.
+// Metrik reputasi memang belum punya sumber: webhook SES belum menerima apa
+// pun. Untuk itu jawabannya `null`, BUKAN 0. Bounce 0% terbaca "sangat sehat",
+// padahal artinya "belum ada yang bisa diukur". Menampilkan 0 pada layar
+// pertama yang dilihat pengguna adalah kekeliruan yang mahal justru karena
+// angkanya terlihat meyakinkan.
 
 import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
-import { pool } from "../db.js";
-import { AMBANG, TAHAP_AWAL, TOTAL_STAGES, batasHarian } from "../domain/warmup.js";
+import { query } from "../db.js";
+import { kuotaHariIni } from "../domain/quota.js";
+import { AMBANG, TOTAL_STAGES } from "../domain/warmup.js";
 
 type Ketersediaan = "tersedia" | "belum_ada_pengiriman" | "belum_terpasang";
 
 export async function domainRoutes(app: FastifyInstance) {
   app.get("/domain/health", async () => {
-    // Satu-satunya angka reputasi yang sudah nyata hari ini: jumlah alamat
-    // yang tidak akan pernah dikirimi lagi.
-    const { rows } = await pool.query<{ count: string }>(
-      "SELECT count(*)::text AS count FROM suppression",
-    );
-    const suppressionTotal = Number(rows[0].count);
+    const [kuota, { rows: supp }, { rows: kirim }] = await Promise.all([
+      kuotaHariIni(config.sender.domain),
+      query<{ count: string }>("SELECT count(*)::text AS count FROM suppression"),
+      // Riwayat pengiriman menentukan apakah reputasi sudah dapat diukur.
+      // Dibaca, bukan diasumsikan.
+      query<{ count: string }>(
+        "SELECT count(*)::text AS count FROM campaign_recipients WHERE sent_at IS NOT NULL",
+      ),
+    ]);
 
-    // Belum ada tabel pengiriman, jadi belum ada riwayat kirim. Ini bukan
-    // asumsi: kalau tabelnya ada nanti, angka di bawah diambil dari sana.
-    const adaRiwayatKirim = false;
-
-    const stage = TAHAP_AWAL;
-    const dailyLimit = batasHarian(stage);
-    const sentToday = 0;
+    const totalTerkirim = Number(kirim[0].count);
+    const adaRiwayatKirim = totalTerkirim > 0;
 
     const pengiriman: Ketersediaan = adaRiwayatKirim ? "tersedia" : "belum_ada_pengiriman";
-    const reputasi: Ketersediaan = adaRiwayatKirim ? "tersedia" : "belum_ada_pengiriman";
+    // Bounce dan keluhan butuh webhook SES, yang belum menerima apa pun —
+    // terpisah dari "sudah ada yang terkirim".
+    const reputasi: Ketersediaan = "belum_ada_pengiriman";
 
     return {
       domain: config.sender.domain,
 
+      // Identitas pengirim ikut dikirim supaya pratinjau pesan menampilkan
+      // yang sebenarnya akan tercantum, bukan contoh. Nilainya disisipkan
+      // server saat menyusun pesan dan tidak dapat diubah dari editor
+      // (04-aturan-kepatuhan.md §1).
+      sender: {
+        name: config.sender.name,
+        address: config.sender.address,
+        postal_address: config.sender.postalAddress,
+      },
+
       warmup: {
-        stage,
+        stage: kuota.stage,
         total_stages: TOTAL_STAGES,
-        daily_limit: dailyLimit,
-        sent_today: sentToday,
-        remaining_today: dailyLimit === null ? null : dailyLimit - sentToday,
-        /** Hari ke berapa domain ini mengirim. `null` = belum pernah mengirim. */
-        days_sending: adaRiwayatKirim ? 0 : null,
+        daily_limit: kuota.batasHarian,
+        sent_today: kuota.terpakaiHariIni,
+        remaining_today: kuota.sisa,
+        /** Jumlah pesan yang pernah keluar. `0` berarti belum pernah mengirim. */
+        total_terkirim: totalTerkirim,
       },
 
       reputation: {
@@ -63,10 +74,10 @@ export async function domainRoutes(app: FastifyInstance) {
       },
 
       /** Nyata dan dapat dipercaya sejak hari pertama. */
-      suppression_total: suppressionTotal,
+      suppression_total: Number(supp[0].count),
 
       sumber: {
-        warmup: adaRiwayatKirim ? "tercatat" : ("bawaan_domain_baru" as string),
+        warmup: "tercatat",
         pengiriman,
         reputasi,
       },

@@ -17,6 +17,7 @@ import {
 } from "../import/repo.js";
 import { collectEmails, validateRows, type RowInput } from "../import/validate.js";
 import { suppressedAmong } from "../suppression/repo.js";
+import { sisaKuotaKontak } from "../tenants/repo.js";
 
 const PREVIEW_ROWS = 5;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -208,6 +209,23 @@ export async function importRoutes(app: FastifyInstance) {
       suppressed,
       fromHarvester: staged.fromHarvester,
     });
+
+    // Kuota kontak yang disetel superadmin ditegakkan di sini — di jalur yang
+    // benar-benar menulis, bukan di antarmuka. Diperiksa terhadap jumlah baris
+    // yang akan MASUK, bukan jumlah baris berkas: baris yang ditolak validasi
+    // tidak memakan kuota siapa pun.
+    const akanMasuk = summary.accepted;
+    const sisa = req.auth?.tenantId ? await sisaKuotaKontak(req.auth.tenantId) : null;
+    if (sisa !== null && akanMasuk > sisa) {
+      return reply.code(422).send({
+        error:
+          `Impor ini menambah ${akanMasuk} kontak, sisa kuota ${sisa}. ` +
+          "Hubungi penyedia layanan untuk menaikkan batas, atau kurangi isi berkas.",
+        kind: "kuota_kontak",
+        sisa_kuota: sisa,
+        akan_masuk: akanMasuk,
+      });
+    }
 
     const result = await commit({
       filename: staged.filename,

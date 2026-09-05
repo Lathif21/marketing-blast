@@ -6,7 +6,7 @@
 // sekalipun fungsinya ditambahkan.
 
 import type { PoolClient } from "pg";
-import { pool, transaction } from "../db.js";
+import { query, queryGlobal, transaction } from "../db.js";
 
 export type { SuppressionReason } from "./ses-events.js";
 import type { SuppressionReason } from "./ses-events.js";
@@ -30,9 +30,17 @@ export async function suppress(
   campaignId: string | null = null,
 ): Promise<void> {
   await client.query(
+    // Sasaran konflik mengikuti kunci primer yang berlaku sejak multi-tenant:
+    // (tenant_id, email). Kolom tenant_id sendiri tidak disebut di daftar
+    // kolom — nilainya terisi DEFAULT dari konteks koneksi — tapi sasaran
+    // konfliknya harus tetap menyebutnya, karena tidak ada lagi indeks unik
+    // atas email saja. Menyebut email sendirian membuat Postgres menolak
+    // seluruh INSERT dengan "no unique or exclusion constraint matching",
+    // dan yang gagal adalah penulisan ke daftar penekanan — jalur yang paling
+    // tidak boleh gagal diam-diam.
     `INSERT INTO suppression (email, reason, campaign_id)
      VALUES ($1, $2, $3)
-     ON CONFLICT (email) DO NOTHING`,
+     ON CONFLICT (tenant_id, email) DO NOTHING`,
     [email, reason, campaignId],
   );
 }
@@ -102,14 +110,14 @@ export async function suppressByUnsubscribeId(
 }
 
 export async function isSuppressed(email: string): Promise<boolean> {
-  const { rowCount } = await pool.query("SELECT 1 FROM suppression WHERE email = $1", [email]);
+  const { rowCount } = await query("SELECT 1 FROM suppression WHERE email = $1", [email]);
   return (rowCount ?? 0) > 0;
 }
 
 /** Menyaring daftar alamat, mengembalikan yang ada di daftar penekanan. */
 export async function suppressedAmong(emails: string[]): Promise<Set<string>> {
   if (emails.length === 0) return new Set();
-  const { rows } = await pool.query<{ email: string }>(
+  const { rows } = await query<{ email: string }>(
     "SELECT email FROM suppression WHERE email = ANY($1::citext[])",
     [emails],
   );
@@ -121,14 +129,14 @@ export async function list(page = 1, perPage = 50) {
   const offset = (Math.max(page, 1) - 1) * limit;
 
   const [items, total] = await Promise.all([
-    pool.query<SuppressionEntry>(
+    query<SuppressionEntry>(
       `SELECT email, reason, campaign_id, created_at
          FROM suppression
         ORDER BY created_at DESC
         LIMIT $1 OFFSET $2`,
       [limit, offset],
     ),
-    pool.query<{ count: string }>("SELECT count(*)::text AS count FROM suppression"),
+    query<{ count: string }>("SELECT count(*)::text AS count FROM suppression"),
   ]);
 
   return {
@@ -137,4 +145,61 @@ export async function list(page = 1, perPage = 50) {
     page: Math.max(page, 1),
     per_page: limit,
   };
+}
+
+// ── Menemukan pemilik dari jalur publik ─────────────────────────────────────
+//
+// Dua rute berjalan tanpa sesi — berhenti berlangganan dan webhook SES — jadi
+// keduanya tiba tanpa konteks pelanggan. Tanpa konteks, Row Level Security
+// menyembunyikan seluruh baris, dan akibatnya bukan galat yang terlihat
+// melainkan dua kerusakan paling mahal yang bisa dialami sistem ini: tautan
+// berhenti berlangganan yang menjawab "tidak berlaku" kepada orang yang ingin
+// keluar, dan pemantulan keras yang tidak pernah masuk daftar penekanan.
+//
+// Ketiga fungsi di bawah memanggil fungsi SECURITY DEFINER dari migrasi 010.
+// Fungsi itu berjalan sebagai pemilik skema — melewati RLS — tapi yang dapat
+// dikembalikannya hanya satu uuid pemilik. Aplikasi lalu memasang konteks itu
+// dan bekerja di dalamnya seperti permintaan biasa.
+//
+// `queryGlobal` dipakai justru karena ia TIDAK menuntut konteks; inilah satu
+// dari sedikit tempat yang sah memakainya di luar tabel akun.
+
+/** Pemilik di balik satu token berhenti berlangganan. */
+export async function tenantDariUnsubscribe(id: string): Promise<string | null> {
+  const { rows } = await queryGlobal<{ t: string | null }>(
+    "SELECT tenant_dari_unsubscribe($1) AS t",
+    [id],
+  );
+  return rows[0]?.t ?? null;
+}
+
+/**
+ * Pemilik di balik satu notifikasi SES.
+ *
+ * `messageId` lebih dipercaya: ia menunjuk tepat ke satu pengiriman yang
+ * memang kita catat. Alamat hanya menunjuk ke orang, dan orang yang sama bisa
+ * menjadi kontak beberapa pelanggan — dipakai hanya untuk balasan masuk yang
+ * tidak membawa header `In-Reply-To`.
+ */
+export async function tenantDariNotifikasi(sumber: {
+  messageId?: string | null;
+  email?: string | null;
+}): Promise<string | null> {
+  if (sumber.messageId) {
+    const { rows } = await queryGlobal<{ t: string | null }>(
+      "SELECT tenant_dari_message($1) AS t",
+      [sumber.messageId],
+    );
+    if (rows[0]?.t) return rows[0].t;
+  }
+
+  if (sumber.email) {
+    const { rows } = await queryGlobal<{ t: string | null }>(
+      "SELECT tenant_dari_email_terkirim($1) AS t",
+      [sumber.email],
+    );
+    if (rows[0]?.t) return rows[0].t;
+  }
+
+  return null;
 }

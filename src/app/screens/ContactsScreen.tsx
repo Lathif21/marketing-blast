@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Eye, Search } from "lucide-react";
 import { EmptyRow, ErrorRow, LoadingRow } from "../components/AsyncState";
+import { ContactActionBar, type RingkasanPilihan } from "../components/ContactActionBar";
 import { Pagination } from "../components/Pagination";
 import { SectionTitle } from "../components/SectionTitle";
 import { StatusBadge } from "../components/StatusBadge";
 import { Th } from "../components/Th";
 import { Mono, Num, Truncate } from "../components/Typography";
-import { listContacts } from "../lib/api";
+import { ApiError, activateContacts, listContacts, quarantineContacts } from "../lib/api";
+import type { Contact } from "../lib/types";
 import { QUARANTINE_REASON } from "../lib/mock";
 import { CONSENT_LABELS, CONSENT_SOURCES, type ConsentSource, type ContactStatus } from "../lib/types";
 import { useAsync } from "../lib/useAsync";
@@ -60,6 +62,98 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
 
   const { status, data, error, reload } = useAsync(() => listContacts(query), [query]);
   const items = data?.items ?? [];
+
+  // ── Seleksi dan aktivasi ───────────────────────────────────────────────────
+  const [terpilih, setTerpilih] = useState<Set<string>>(new Set());
+  const [dinyatakanOleh, setDinyatakanOleh] = useState("");
+  const [sibuk, setSibuk] = useState(false);
+  const [kabar, setKabar] = useState<{ nada: "ok" | "galat"; teks: string } | null>(null);
+
+  // Pilihan dibuang saat kumpulan datanya berganti. Menyimpan id dari halaman
+  // sebelumnya berarti pengguna menekan "Aktifkan 40" sementara yang terlihat
+  // di layar hanya 12 — jumlah yang tidak dapat mereka periksa.
+  useEffect(() => {
+    setTerpilih(new Set());
+  }, [query]);
+
+  const petaBaris = useMemo(() => new Map(items.map((c) => [c.id, c])), [items]);
+
+  const pilihan: RingkasanPilihan = useMemo(() => {
+    const dipilih = [...terpilih]
+      .map((id) => petaBaris.get(id))
+      .filter((c): c is Contact => Boolean(c));
+
+    const karantina = dipilih.filter((c) => c.status === "karantina");
+    return {
+      total: dipilih.length,
+      karantinaFound: karantina.filter((c) => c.emailOrigin !== "guessed").length,
+      karantinaTebakan: karantina.filter((c) => c.emailOrigin === "guessed").length,
+      aktif: dipilih.filter((c) => c.status === "aktif").length,
+      tidakLayak: dipilih.filter((c) => c.status === "diblokir").length,
+    };
+  }, [terpilih, petaBaris]);
+
+  const toggle = useCallback((id: string) => {
+    setTerpilih((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const semuaTerpilih = items.length > 0 && items.every((c) => terpilih.has(c.id));
+  const toggleSemua = () => {
+    setTerpilih(semuaTerpilih ? new Set() : new Set(items.map((c) => c.id)));
+  };
+
+  const pesanGalat = (err: unknown) =>
+    err instanceof ApiError ? err.message : ((err as Error)?.message ?? "Galat tidak dikenal");
+
+  async function aktifkan(izinkanTebakan: boolean) {
+    setSibuk(true);
+    setKabar(null);
+    try {
+      const hasil = await activateContacts([...terpilih], dinyatakanOleh, izinkanTebakan);
+      const r = hasil.ringkasan;
+      // Yang ditolak ikut dilaporkan, bukan didiamkan. Aktivasi yang diam-diam
+      // melewatkan sebagian membuat pengguna mengira semuanya berhasil.
+      const catatan = [
+        r.alamat_tebakan > 0 ? `${r.alamat_tebakan} alamat tebakan dilewati` : null,
+        r.diblokir > 0 ? `${r.diblokir} diblokir` : null,
+        r.ada_di_penekanan > 0 ? `${r.ada_di_penekanan} ada di daftar penekanan` : null,
+        r.sudah_aktif > 0 ? `${r.sudah_aktif} sudah aktif` : null,
+      ].filter(Boolean);
+
+      setKabar({
+        nada: "ok",
+        teks:
+          `${hasil.diaktifkan} kontak diaktifkan` +
+          (catatan.length > 0 ? ` — ${catatan.join(", ")}` : ""),
+      });
+      setTerpilih(new Set());
+      reload();
+    } catch (err) {
+      setKabar({ nada: "galat", teks: pesanGalat(err) });
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  async function karantinakan() {
+    setSibuk(true);
+    setKabar(null);
+    try {
+      const hasil = await quarantineContacts([...terpilih]);
+      setKabar({ nada: "ok", teks: `${hasil.dikarantina} kontak dikembalikan ke karantina` });
+      setTerpilih(new Set());
+      reload();
+    } catch (err) {
+      setKabar({ nada: "galat", teks: pesanGalat(err) });
+    } finally {
+      setSibuk(false);
+    }
+  }
   const adaFilter = statusFilter !== "semua" || consentFilter !== "semua" || debounced.trim() !== "";
 
   // Jaring pengaman kalau jumlah data menyusut di luar aksi pengguna —
@@ -130,6 +224,31 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
         </div>
       </div>
 
+      {kabar && (
+        <div
+          className="rounded-sm p-3 mb-3 text-xs border"
+          style={{
+            backgroundColor: kabar.nada === "ok" ? "rgba(43,122,90,0.12)" : "rgba(140,46,46,0.14)",
+            borderColor: kabar.nada === "ok" ? "rgba(92,201,160,0.3)" : "rgba(224,82,82,0.28)",
+            color: kabar.nada === "ok" ? "#5cc9a0" : "#e05252",
+          }}
+        >
+          {kabar.teks}
+        </div>
+      )}
+
+      {pilihan.total > 0 && (
+        <ContactActionBar
+          pilihan={pilihan}
+          dinyatakanOleh={dinyatakanOleh}
+          onDinyatakanOleh={setDinyatakanOleh}
+          onAktifkan={(izin) => void aktifkan(izin)}
+          onKarantinakan={() => void karantinakan()}
+          onBersihkan={() => setTerpilih(new Set())}
+          sibuk={sibuk}
+        />
+      )}
+
       <div className="bg-card border border-border rounded-sm overflow-hidden">
         {status === "gagal" && items.length === 0 ? (
           <ErrorRow message={error} onRetry={reload} />
@@ -175,6 +294,14 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border">
+                <th className="px-3 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={semuaTerpilih}
+                    onChange={toggleSemua}
+                    aria-label="Pilih semua di halaman ini"
+                  />
+                </th>
                 <Th>Perusahaan</Th>
                 <Th>Email</Th>
                 <Th>Sumber Izin</Th>
@@ -203,6 +330,14 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                           : "2px solid transparent",
                   }}
                 >
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={terpilih.has(c.id)}
+                      onChange={() => toggle(c.id)}
+                      aria-label={`Pilih ${c.company}`}
+                    />
+                  </td>
                   <td className="px-3 py-2 font-medium text-foreground">
                     <Truncate maxWidth="260px">{c.company}</Truncate>
                   </td>

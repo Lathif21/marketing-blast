@@ -13,7 +13,8 @@
 
 import type { FastifyInstance } from "fastify";
 import { verifyUnsubscribeToken } from "../lib/tokens.js";
-import { suppressByUnsubscribeId } from "../suppression/repo.js";
+import { suppressByUnsubscribeId, tenantDariUnsubscribe } from "../suppression/repo.js";
+import { dalamKonteks } from "../db.js";
 
 function page(title: string, body: string, tone: "ok" | "error" = "ok"): string {
   const accent = tone === "ok" ? "#2b7a5a" : "#8c2e2e";
@@ -88,7 +89,21 @@ export async function unsubscribeRoutes(app: FastifyInstance) {
     const contactId = verifyUnsubscribeToken(token);
     if (!contactId) return { code: 404, html: NOT_VALID };
 
-    const result = await suppressByUnsubscribeId(contactId, "unsubscribe");
+    // Rute ini publik, jadi tiba tanpa konteks pelanggan — dan tanpa konteks
+    // Row Level Security menyembunyikan setiap baris, termasuk baris yang
+    // hendak ditekan. Pemiliknya karena itu dicari lewat token-nya sendiri
+    // (fungsi SECURITY DEFINER di migrasi 010), lalu penekanannya berjalan di
+    // dalam konteks itu seperti permintaan biasa.
+    //
+    // Dibiarkan tanpa konteks, halaman ini akan menjawab "tautan tidak
+    // berlaku" kepada SETIAP orang yang ingin berhenti — kegagalan yang tidak
+    // memunculkan galat, dan yang akibatnya adalah laporan spam.
+    const tenantId = await tenantDariUnsubscribe(contactId);
+    if (!tenantId) return { code: 404, html: NOT_VALID };
+
+    const result = await dalamKonteks({ tenantId }, () =>
+      suppressByUnsubscribeId(contactId, "unsubscribe"),
+    );
 
     // Tidak ada alamat yang dapat ditemukan untuk token ini, jadi tidak ada
     // yang dapat ditekan.

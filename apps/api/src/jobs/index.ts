@@ -4,6 +4,10 @@
 // fase mana yang mengisinya.
 
 import { runSendWorker } from "./send-worker.js";
+import { perTenant } from "./per-tenant.js";
+import { sapuSesiKedaluwarsa } from "../auth/repo.js";
+import { runFollowupWorker } from "./followup-worker.js";
+import { runEngagementRecalc, runRetentionSweep } from "./respons-worker.js";
 
 export interface Job {
   name: string;
@@ -19,6 +23,10 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
+ * Sejak multi-tenant, pekerjaan yang menyentuh data pelanggan dibungkus
+ * `perTenant`. Yang tidak dibungkus hanya pekerjaan lintas-instalasi — dan
+ * satu-satunya sekarang adalah penyapuan sesi.
+ *
  * Belum diimplementasikan. Sengaja tidak melempar error: penjadwal harus bisa
  * dijalankan utuh di Fase 0 tanpa membuat container restart terus-menerus.
  */
@@ -37,7 +45,24 @@ export const JOBS: Job[] = [
     // tapi penjadwal tetap memanggil `pending`. Akibatnya worker mencatat
     // "belum diimplementasikan" tiap menit dan tidak ada satu pun pesan yang
     // diproses — kegagalan yang tidak menimbulkan galat sama sekali.
-    run: runSendWorker,
+    run: perTenant("aktif", "send-worker", runSendWorker),
+  },
+  {
+    name: "followup-enroll",
+    // Lebih jarang daripada send-worker dengan sengaja. Yang dikejar bukan
+    // kecepatan: jeda tindak lanjut diukur dalam jam, jadi memeriksa tiap
+    // menit hanya menambah query tanpa mengubah kapan pesannya keluar.
+    intervalMs: 10 * MINUTE,
+    phase: 4,
+    // Daftarkan penerima yang bereaksi ke kampanye tindak lanjutnya.
+    run: perTenant("aktif", "followup", runFollowupWorker),
+  },
+  {
+    name: "engagement-recalc",
+    intervalMs: HOUR,
+    phase: 4,
+    // Nilai ulang `contacts.respons` dari event pengiriman terbaru.
+    run: perTenant("hidup", "engagement", runEngagementRecalc),
   },
   {
     name: "verify-worker",
@@ -65,7 +90,20 @@ export const JOBS: Job[] = [
     name: "retention-sweep",
     intervalMs: 30 * DAY,
     phase: 4,
-    // Hapus kontak tanpa respons sesuai kebijakan retensi.
-    run: pending("retention-sweep"),
+    // Laporkan kontak tanpa respons. Penghapusannya tetap keputusan orang —
+    // lihat catatan di respons-worker.ts.
+    run: perTenant("hidup", "retensi", runRetentionSweep),
+  },
+  {
+    name: "sesi-sweep",
+    intervalMs: HOUR,
+    phase: 5,
+    // Membuang sesi kedaluwarsa. Satu-satunya pekerjaan yang TIDAK per
+    // pelanggan: tabel `sessions` berada di luar penyaringan tenant, karena
+    // ialah yang menetapkan tenant (lihat migrasi 010).
+    run: async () => {
+      const dibuang = await sapuSesiKedaluwarsa();
+      if (dibuang > 0) console.info(`[sesi-sweep] ${dibuang} sesi kedaluwarsa dibuang`);
+    },
   },
 ];

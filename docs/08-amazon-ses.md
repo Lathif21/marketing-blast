@@ -134,6 +134,9 @@ Selama menunggu, verifikasi 2–3 alamat pribadi Anda sendiri sebagai penerima
 uji — itu tetap bisa dilakukan di dalam sandbox, dan cukup untuk menguji jalur
 pemantulan serta berhenti berlangganan.
 
+Langkah lengkapnya, beserta alamat simulator yang memicu pemantulan dan keluhan
+tanpa merusak reputasi, ada di [bagian 10](#10-uji-coba-dengan-alamat-pribadi-di-sandbox).
+
 ## 5. IAM user untuk aplikasi
 
 Konsol IAM → **Users** → **Create user**. Jangan beri akses konsol; aplikasi
@@ -201,8 +204,28 @@ destination** → pilih SNS, arahkan ke topik tadi. Event yang perlu dilanggan:
 | `Complaint` | Keluhan spam masuk daftar penekanan |
 | `Delivery` | Menandai penerima `delivered` |
 | `Reject` | SES menolak sebelum terkirim |
+| `Open` | Mengisi `opened_at` — **pemicu kampanye tindak lanjut** |
+| `Click` | Mengisi `clicked_at` — **pemicu kampanye tindak lanjut** |
 
-`Open` dan `Click` menyusul saat laporan dikerjakan di Fase 4.
+`Open` dan `Click` dulu tercatat sebagai "menyusul di Fase 4". Sekarang keduanya
+wajib, dan alasannya bukan pelaporan: seluruh fitur tindak lanjut kampanye
+berdiri di atas dua kolom itu. Tanpa keduanya dilanggan, `opened_at` dan
+`clicked_at` tidak pernah terisi — satu-satunya pemicu yang masih bekerja adalah
+`membalas`, dan setiap kontak pada akhirnya dinilai `diam` lalu berhenti
+dikirimi. Kegagalan itu tidak memunculkan galat sama sekali.
+
+Dua hal yang perlu diketahui sebelum menyalakannya:
+
+* **Buka hanya terdeteksi kalau klien penerima memuat gambar pelacak.** Gmail
+  memuatnya lewat proksi, jadi umumnya terbaca; sebagian besar klien perusahaan
+  memblokirnya. Angka buka yang rendah karena itu belum tentu berarti tidak ada
+  yang membaca — ini alasan `diam` tidak pernah otomatis menjadi penghapusan
+  kontak.
+* **Klik menuntut SES menulis ulang setiap tautan** menjadi domain pelacak.
+  Tanpa custom redirect domain, tautannya menjadi `awstrack.me` — domain milik
+  bersama yang reputasinya di luar kendali Anda dan terlihat oleh penerima.
+  Kalau `Click` dinyalakan, siapkan subdomain pelacak sendiri di configuration
+  set.
 
 **Langganan HTTPS.** Pada topik SNS → **Create subscription** → protokol
 HTTPS → endpoint `https://blast.contoh.id/webhooks/ses`.
@@ -309,6 +332,203 @@ Butir terakhir tidak bisa dilewati. Kalau jalur pemantulan belum bekerja,
 kerusakan reputasi terjadi tanpa terdeteksi — dan saat terdeteksi, yang rusak
 sudah bukan sesuatu yang bisa diperbaiki dengan deploy.
 
+## 10. Uji coba dengan alamat pribadi di sandbox
+
+Bagian ini untuk pengujian dengan `lathif.sihab95@gmail.com` sebagai penerima,
+sebelum ada satu pun alamat pelanggan yang dikirimi.
+
+> **Prasyarat yang belum terpenuhi:** `apps/api/src/mail/ses.ts` masih kerangka
+> yang melempar saat dipanggil. Menyetel `MAIL_DRIVER=ses` sekarang membuat
+> setiap penerima ditandai `failed` dengan pesan "Driver SES belum
+> diimplementasikan", bukan mengirim. Seluruh persiapan sisi AWS di bawah tetap
+> dapat — dan sebaiknya — dikerjakan lebih dulu, karena verifikasi identitas dan
+> langganan SNS memakan waktu tersendiri. Yang harus menunggu hanya langkah
+> terakhir.
+
+### 10.1 Sandbox menuntut KEDUA sisi terverifikasi
+
+Di dalam sandbox, alamat penerima harus terverifikasi — dan pengirim memang
+selalu harus. Ini yang paling sering salah dipahami: memverifikasi Gmail Anda
+saja tidak cukup untuk mengirim.
+
+Konsol SES → **Identities** → **Create identity** → **Email address** →
+`lathif.sihab95@gmail.com`. SES mengirim email berisi tautan konfirmasi yang
+berlaku 24 jam. Klik, dan statusnya menjadi `Verified`.
+
+**Beberapa penerima dari satu kotak masuk.** Gmail mengantarkan alamat
+ber-tanda-plus ke kotak masuk yang sama, dan SES memperlakukannya sebagai
+identitas terpisah:
+
+```
+lathif.sihab95+uji1@gmail.com
+lathif.sihab95+uji2@gmail.com
+lathif.sihab95+uji3@gmail.com
+```
+
+Verifikasi masing-masing; ketiga email konfirmasinya mendarat di kotak masuk
+yang sama. Ini yang membuat "kirim ke daftar kecil milik sendiri" benar-benar
+menyerupai kampanye — beberapa penerima berbeda, satu tempat memeriksanya.
+
+### 10.2 Pengirimnya tetap harus domain Anda
+
+Godaannya adalah memverifikasi Gmail sebagai PENGIRIM juga, supaya tidak perlu
+menunggu domain siap. Jangan, kecuali sekadar membuktikan koneksi API hidup.
+
+SES menandatangani DKIM atas nama `amazonses.com` untuk identitas berbentuk
+alamat email, dan envelope sender-nya juga milik Amazon. Pesan dengan
+`From: ...@gmail.com` karena itu gagal keselarasan SPF maupun DKIM terhadap
+`gmail.com` — Anda mengirim atas nama domain yang bukan milik Anda, lewat jalur
+yang tidak diizinkan domain itu. Kebijakan DMARC `gmail.com` di luar kendali
+kita dan arahnya semakin ketat; hasilnya berkisar dari masuk folder spam sampai
+ditolak, dan yang Anda uji lalu bukan sistem ini melainkan toleransi Gmail.
+
+Yang benar: selesaikan verifikasi domain pengirim di bagian 3 lebih dulu.
+Selama sandbox, domain terverifikasi sudah cukup untuk mengirim — yang dibatasi
+sandbox adalah penerimanya, dan itu diselesaikan 10.1.
+
+### 10.3 Alamat simulator: menguji kerusakan tanpa merusak
+
+Ini bagian terpenting, dan yang paling sering dilewati karena tidak kelihatan
+mendesak.
+
+Jalur pemantulan dan keluhan adalah yang menjaga reputasi domain. Cara menguji
+keduanya BUKAN dengan mengarang alamat yang salah — pemantulan sungguhan tetap
+tercatat pada reputasi Anda. SES menyediakan alamat simulator yang bekerja di
+dalam sandbox, tidak perlu diverifikasi, dan **tidak dihitung ke dalam metrik
+reputasi**:
+
+| Alamat | Yang terjadi |
+|---|---|
+| `bounce@simulator.amazonses.com` | Pemantulan keras → masuk daftar penekanan |
+| `complaint@simulator.amazonses.com` | Keluhan spam → masuk daftar penekanan |
+| `success@simulator.amazonses.com` | Terkirim normal → `delivered` |
+| `ooto@simulator.amazonses.com` | Balasan otomatis "sedang di luar kantor" |
+| `suppressionlist@simulator.amazonses.com` | Ditolak karena daftar penekanan SES |
+
+Susun satu kampanye uji berisi kelimanya ditambah alamat Gmail Anda, lalu
+periksa hasilnya di basis data:
+
+```sql
+SELECT email, status, bounced_at, complained_at, replied_at, skip_reason
+  FROM campaign_recipients WHERE campaign_id = '<id>';
+
+SELECT email, reason FROM suppression;
+```
+
+Yang harus terbukti — dan ini daftar yang menentukan boleh-tidaknya melanjutkan:
+
+- `bounce@` dan `complaint@` berakhir di tabel `suppression`, dengan alasan yang
+  berbeda dan benar
+- kontaknya ikut berubah menjadi `diblokir`
+- mengirim ulang kampanye tidak lagi menyertakan keduanya
+- `success@` bertanda `delivered`
+
+`ooto@` layak diuji khusus sejak ada fitur tindak lanjut: balasan otomatis
+"sedang di luar kantor" akan tercatat sebagai **balasan**, dan pemicu
+`membalas` menganggapnya tanda ketertarikan. Itu memang perilaku yang dipilih —
+menebak balasan otomatis dari subjeknya berarti menebak dalam beberapa bahasa
+dan tetap meleset — tapi Anda perlu melihatnya sekali sendiri supaya tahu apa
+yang harus dibersihkan sebelum kampanye lanjutan berjalan.
+
+**Menandai spam di Gmail tidak menghasilkan notifikasi keluhan.** Gmail tidak
+menyediakan umpan balik keluhan per pengirim seperti Yahoo atau Outlook, jadi
+`complained_at` tidak akan pernah terisi dari sana. Satu-satunya cara menguji
+jalur keluhan adalah alamat simulator di atas. Kalau ini tidak diketahui, mudah
+menyimpulkan "jalur keluhan sudah bekerja" dari percobaan yang memang tidak
+pernah mengirim apa pun.
+
+### 10.4 Webhook dan tautan berhenti berlangganan perlu alamat publik
+
+Dua hal berhenti bekerja saat berjalan di laptop:
+
+1. **SNS tidak dapat menjangkau `localhost`.** Tanpa endpoint publik, tidak ada
+   satu pun event pemantulan yang masuk — dan yang terlihat justru "semuanya
+   lancar", karena tidak ada yang melaporkan sebaliknya.
+2. **Tautan berhenti berlangganan di email tidak dapat diklik.** Anda membukanya
+   dari Gmail, bisa jadi dari ponsel; `http://localhost:3000` di sana menunjuk
+   ke ponsel Anda sendiri.
+
+Pakai terowongan HTTPS sementara (`cloudflared tunnel --url http://localhost:3000`
+atau `ngrok http 3000`), lalu arahkan keduanya ke URL itu:
+
+```bash
+PUBLIC_BASE_URL=https://<nama-acak>.trycloudflare.com
+```
+
+Langganan SNS diarahkan ke `https://<nama-acak>.trycloudflare.com/webhooks/ses`.
+SNS menuntut HTTPS dengan sertifikat sah — terowongan menyediakannya.
+
+Alamat terowongan berubah setiap kali dijalankan ulang, jadi langganan SNS-nya
+perlu dibuat ulang juga. Merepotkan, tapi lebih jujur daripada menunda pengujian
+webhook sampai setelah kampanye pertama.
+
+### 10.5 Menyiapkan sisi aplikasi
+
+Sistem ini sekarang multi-tenant, jadi kontak ujinya harus punya pemilik.
+Paling sederhana: pakai pelanggan `bawaan`, dan buat pengguna untuk masuk.
+
+```bash
+cd apps/api
+npm run pengguna -- admin bawaan lathif.sihab95@gmail.com "Lathif"
+```
+
+Lalu lewat antarmuka, masuk sebagai pengguna itu dan:
+
+1. Impor atau tambahkan kontak `lathif.sihab95@gmail.com` beserta alamat
+   simulator. Sumber izin apa pun yang jujur — untuk alamat sendiri,
+   `pelanggan_existing` masuk akal.
+2. Pastikan status kontaknya `aktif`. Kontak hasil tebakan
+   (`email_origin = guessed`) masuk karantina dan ditolak aktivasi kecuali
+   pengecualiannya diminta eksplisit — untuk uji ini pakai `manual` atau
+   `found`.
+3. Susun kampanye, jalankan pra-kirim, kirim. Tahap pemanasan 1 memberi 50
+   pesan per hari; jauh lebih dari cukup.
+4. Worker mengambil antrean tiap menit. Kalau berjalan lewat `npm run dev`,
+   pastikan proses worker-nya hidup — antrean yang tidak bergerak paling sering
+   berarti worker-nya memang tidak jalan.
+
+### 10.6 Yang diperiksa di kotak masuk
+
+Buka pesannya di Gmail dan periksa satu per satu:
+
+- **Identitas dan alamat fisik pengirim ada di kaki pesan.** Keduanya
+  disisipkan server, jadi kalau hilang berarti ada yang salah di penyusun pesan
+  — bukan di isi yang Anda tulis.
+- **Gmail menampilkan tombol "Berhenti berlangganan"** di samping nama
+  pengirim. Itu berasal dari header `List-Unsubscribe` dan
+  `List-Unsubscribe-Post`; kalau tidak muncul, header-nya tidak sampai.
+- **Klik tautan berhenti berlangganan.** Harus langsung berlaku, tanpa halaman
+  konfirmasi bertingkat dan tanpa diminta masuk akun. Setelah itu, alamatnya ada
+  di `suppression` dan kontaknya `diblokir`.
+- **Kirim ulang kampanye yang sama.** Alamat yang sudah berhenti berlangganan
+  harus terlewat dengan `skip_reason`, bukan terkirim lagi.
+- **Periksa header pesan** (Gmail → "Tampilkan yang asli"): `SPF: PASS`,
+  `DKIM: PASS`, `DMARC: PASS`. Ketiganya harus selaras dengan domain pengirim
+  Anda, bukan dengan `amazonses.com`.
+
+Butir terakhir adalah yang membedakan "email sampai" dari "email sampai dan
+akan terus sampai". Selaras sejak awal jauh lebih murah daripada memperbaiki
+reputasi yang sudah turun.
+
+### 10.7 Setelah uji coba
+
+Alamat Gmail Anda ada di daftar penekanan setelah menguji berhenti berlangganan,
+dan daftar itu **tidak punya operasi hapus** — di lapisan mana pun, termasuk
+lewat SQL sebagai peran aplikasi. Itu memang dirancang begitu.
+
+Untuk mengulang pengujian, pakai alamat ber-tanda-plus yang berbeda
+(`+uji4`, `+uji5`, dan seterusnya). Jangan menambahkan jalur penghapusan
+penekanan demi kenyamanan pengujian — begitu jalur itu ada, ia akan dipakai di
+produksi juga.
+
+Kalau basis data pengembangan perlu benar-benar bersih, hapus datanya sebagai
+pemilik skema, bukan lewat aplikasi:
+
+```bash
+docker compose exec db psql -U blast -d marketing_blast \
+  -c "DELETE FROM suppression WHERE email LIKE 'lathif.sihab95%';"
+```
+
 ## Kesalahan yang mahal
 
 - **Memakai access key root.** Tagihan tak terbatas kalau bocor.
@@ -319,5 +539,12 @@ sudah bukan sesuatu yang bisa diperbaiki dengan deploy.
   penekanan permanen Anda.
 - **Mengirim ke daftar besar untuk uji coba.** Uji pada daftar sendiri lebih
   dulu — kerusakan reputasi tidak bisa dibatalkan.
+- **Menguji pemantulan dengan alamat karangan.** Pemantulannya sungguhan dan
+  tercatat pada reputasi Anda. Pakai alamat simulator (bagian 10.3).
+- **Mengirim atas nama alamat `@gmail.com`.** Gagal keselarasan SPF dan DKIM,
+  dan yang Anda uji jadi toleransi Gmail, bukan sistem ini (bagian 10.2).
+- **Menyimpulkan jalur keluhan bekerja karena sudah menandai spam di Gmail.**
+  Gmail tidak mengirim umpan balik keluhan; `complained_at` tidak akan pernah
+  terisi dari sana.
 - **Berpindah region setelah berjalan.** Verifikasi, configuration set, dan
   kuota tidak ikut pindah.

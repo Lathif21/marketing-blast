@@ -10,6 +10,9 @@ import multipart from "@fastify/multipart";
 import { config, validateConfig } from "./config.js";
 import { close, ping } from "./db.js";
 import { mailDriver } from "./mail/index.js";
+import { authPlugin } from "./auth/plugin.js";
+import { authRoutes } from "./routes/auth.js";
+import { adminRoutes } from "./routes/admin.js";
 import { campaignRoutes } from "./routes/campaigns.js";
 import { contactRoutes } from "./routes/contacts.js";
 import { domainRoutes } from "./routes/domain.js";
@@ -94,6 +97,29 @@ app.get("/health", async (_req, reply) => {
       .send({ status: "degraded", database: "unreachable", mail: mailStatus });
   }
 });
+
+// Autentikasi dipasang LANGSUNG pada instance akar, bukan lewat `register`.
+//
+// Ini bukan selera gaya. `register` membuat lingkup terenkapsulasi: hook yang
+// ditambahkan di dalamnya hanya berlaku untuk rute yang didaftarkan di lingkup
+// itu dan turunannya — TIDAK untuk plugin bersaudara. Dipasang lewat
+// `register`, hook autentikasi tidak pernah berjalan untuk `/contacts`,
+// `/campaigns`, dan seluruh rute lain di bawah ini.
+//
+// Kegagalannya sudah terjadi sekali saat fitur ini dibangun, dan bentuknya
+// pantas dicatat: permintaan tanpa sesi TIDAK dibalas 401 — ia lolos ke
+// handler, lalu gagal 500 karena `query()` menolak bekerja tanpa konteks
+// tenant. Yang menyelamatkan keadaan itu adalah penjagaan di lapisan basis
+// data, bukan pemeriksaan sesi di sini. Kalau `query()` dulu dibuat "jatuh
+// kembali ke pool" alih-alih melempar, setiap rute data pelanggan akan
+// terbuka tanpa autentikasi dan balasannya 200 — tanpa satu pun galat yang
+// menunjukkannya.
+//
+// Dipasang sebelum rute mana pun karena hook hanya berlaku untuk rute yang
+// didaftarkan sesudahnya. Daftar rute publik ada di auth/plugin.ts.
+await authPlugin(app);
+await app.register(authRoutes);
+await app.register(adminRoutes);
 
 await app.register(unsubscribeRoutes);
 await app.register(sesWebhookRoutes);

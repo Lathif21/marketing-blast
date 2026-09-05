@@ -1,5 +1,5 @@
 import type React from "react";
-import { Activity, BarChart2, Database, Mail, Send, Upload, Users } from "lucide-react";
+import { Activity, BarChart2, Database, Mail, Repeat, Send, Upload, Users } from "lucide-react";
 import { useDomainHealth } from "../lib/domainHealth";
 import type { Screen } from "../lib/types";
 import { Mono, Num } from "./Typography";
@@ -9,6 +9,7 @@ const NAV: { id: Screen; icon: React.ElementType; label: string }[] = [
   { id: "import",      icon: Upload,    label: "Impor Kontak"  },
   { id: "contacts",    icon: Users,     label: "Daftar Kontak" },
   { id: "builder",     icon: Send,      label: "Buat Kampanye" },
+  { id: "followup",    icon: Repeat,    label: "Tindak Lanjut" },
   { id: "report",      icon: BarChart2, label: "Laporan"       },
   { id: "suppression", icon: Database,  label: "Daftar Suppres" },
 ];

@@ -39,6 +39,9 @@ export function ImportScreen() {
   const [step, setStep] = useState<ImportStep>(1);
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
+  /** Berkas .enc yang sudah dipilih tapi belum punya sandi. */
+  const [menungguSandi, setMenungguSandi] = useState<File | null>(null);
+  const [galatSandi, setGalatSandi] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [validation, setValidation] = useState<ImportValidation | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -55,6 +58,8 @@ export function ImportScreen() {
     setStep(1);
     setFile(null);
     setPassword("");
+    setMenungguSandi(null);
+    setGalatSandi(null);
     setPreview(null);
     setValidation(null);
     setMapping({});
@@ -66,22 +71,62 @@ export function ImportScreen() {
   const pesanGalat = (err: unknown) =>
     err instanceof ApiError ? err.message : ((err as Error)?.message ?? "Galat tidak dikenal");
 
-  async function unggah(selected: File) {
+  /**
+   * Mengunggah berkas.
+   *
+   * Sandi diterima sebagai ARGUMEN, bukan dibaca dari state. Dialog sandi
+   * memanggil fungsi ini tepat setelah menyetel state-nya, dan setState React
+   * belum berlaku pada render yang sama — membacanya dari state berarti
+   * percobaan pertama selalu terkirim dengan sandi kosong.
+   */
+  async function unggah(selected: File, sandi?: string) {
     setBusy(true);
     setError(null);
     try {
-      const result = await uploadImport(selected, password || undefined);
+      const result = await uploadImport(selected, sandi || undefined);
       setPreview(result);
       setFile(selected);
+      setMenungguSandi(null);
+      setGalatSandi(null);
       // Berkas Contact Harvester tidak perlu dipetakan — langkah 2 hanya
       // menampilkan konfirmasi dan pernyataan sumber izin.
       setMapping(result.detected_source === "contact_harvester" ? {} : tebakPemetaan(result.columns));
       setStep(2);
     } catch (err) {
-      setError(pesanGalat(err));
+      // Kegagalan yang masih bisa diperbaiki dengan mengetik ulang sandi
+      // ditampilkan DI DALAM dialog, supaya berkasnya tidak perlu dipilih
+      // ulang. Sisanya jatuh ke galat layar seperti biasa.
+      const kind = err instanceof ApiError ? (err.body as { kind?: string } | null)?.kind : null;
+      if (menungguSandi && (kind === "kata_sandi_salah" || kind === "password_kosong")) {
+        setGalatSandi(pesanGalat(err));
+      } else {
+        setMenungguSandi(null);
+        setError(pesanGalat(err));
+      }
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Berkas dipilih dari penjelajah berkas.
+   *
+   * Berkas `.enc` TIDAK langsung diunggah — sandinya diminta lebih dulu lewat
+   * dialog. Sebelumnya berkas terenkripsi langsung terkirim tanpa sandi, lalu
+   * ditolak server, dan mengetik sandi setelah itu tidak melakukan apa pun:
+   * tidak ada yang mengulang pengunggahan, dan memilih berkas yang SAMA lagi
+   * tidak memicu `onChange` sehingga tidak ada jalan keluar selain memuat
+   * ulang halaman.
+   */
+  function pilihBerkas(selected: File) {
+    if (selected.name.toLowerCase().endsWith(".enc")) {
+      setPassword("");
+      setGalatSandi(null);
+      setError(null);
+      setMenungguSandi(selected);
+      return;
+    }
+    void unggah(selected);
   }
 
   async function validasi() {
@@ -161,7 +206,12 @@ export function ImportScreen() {
             className="hidden"
             onChange={(e) => {
               const selected = e.target.files?.[0];
-              if (selected) void unggah(selected);
+              // Nilainya dikosongkan supaya memilih berkas yang SAMA lagi
+              // tetap memicu `onChange`. Tanpa ini, percobaan ulang setelah
+              // gagal hanya bekerja kalau pengguna memilih berkas yang
+              // berbeda — dan itu terbaca sebagai antarmuka yang macet.
+              e.target.value = "";
+              if (selected) pilihBerkas(selected);
             }}
           />
 
@@ -201,25 +251,40 @@ export function ImportScreen() {
             )}
           </button>
 
+          {/* Tidak ada lagi kolom sandi di sini. Sandi diminta saat berkas
+              .enc dipilih — urutan yang mengikuti apa yang benar-benar
+              dilakukan pengguna, alih-alih menuntut mereka mengisi sandi
+              untuk berkas yang belum tentu terenkripsi. */}
           <div className="bg-card border border-border rounded-sm p-4">
             <div className="flex items-center gap-2 mb-2">
               <Lock size={12} style={{ color: "#c4824a" }} />
               <span className="text-xs font-medium text-foreground">File Terenkripsi (.enc)</span>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              Isi password dekripsi sebelum memilih berkas. Dekripsi dilakukan di memori server —
-              berkas terdekripsi tidak pernah ditulis ke disk.
+            <p className="text-xs text-muted-foreground">
+              Pilih berkasnya seperti biasa — sandi dekripsi diminta setelah itu. Dekripsi
+              dilakukan di memori server; berkas terdekripsi tidak pernah ditulis ke disk.
             </p>
-            <input
-              type="password"
-              placeholder="Password dekripsi..."
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-secondary border border-border rounded-sm px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none"
-              style={{ caretColor: "#c4824a" }}
-            />
           </div>
         </div>
+      )}
+
+      {menungguSandi && (
+        <DialogSandi
+          namaBerkas={menungguSandi.name}
+          sandi={password}
+          galat={galatSandi}
+          sibuk={busy}
+          onUbah={(v) => {
+            setPassword(v);
+            setGalatSandi(null);
+          }}
+          onBatal={() => {
+            setMenungguSandi(null);
+            setPassword("");
+            setGalatSandi(null);
+          }}
+          onKirim={() => void unggah(menungguSandi, password)}
+        />
       )}
 
       {/* ── Langkah 2 ── */}
@@ -507,4 +572,107 @@ function tebakPemetaan(columns: string[]): Record<string, string> {
     address: cari("alamat", "address"),
     phone: cari("telepon", "phone", "telp"),
   };
+}
+
+/**
+ * Dialog sandi untuk berkas terenkripsi.
+ *
+ * Modal, bukan kolom di halaman, karena berkas terenkripsi TIDAK dapat
+ * dilanjutkan tanpa sandi — dan kolom yang bisa diabaikan pada layar yang
+ * masih bisa diklik ke mana-mana memang akan diabaikan. Ini juga yang membuat
+ * percobaan ulang bekerja: saat sandi salah, dialognya tetap terbuka bersama
+ * berkas yang sudah dipilih, jadi yang perlu diulang hanya mengetik.
+ */
+function DialogSandi({
+  namaBerkas,
+  sandi,
+  galat,
+  sibuk,
+  onUbah,
+  onBatal,
+  onKirim,
+}: {
+  namaBerkas: string;
+  sandi: string;
+  galat: string | null;
+  sibuk: boolean;
+  onUbah: (v: string) => void;
+  onBatal: () => void;
+  onKirim: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(5,9,14,0.72)" }}
+      onClick={onBatal}
+      role="presentation"
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (sandi && !sibuk) onKirim();
+        }}
+        className="w-full max-w-sm bg-card border border-border rounded-sm p-4 space-y-3"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sandi dekripsi berkas"
+      >
+        <div className="flex items-center gap-2">
+          <Lock size={13} style={{ color: "#c4824a" }} />
+          <span className="text-xs font-medium text-foreground">Berkas terenkripsi</span>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <Mono style={{ color: "#dce3ec" }}>{namaBerkas}</Mono> terenkripsi. Masukkan sandi yang
+          dipakai saat berkas ini diekspor dari Contact Harvester.
+        </p>
+
+        <input
+          // Fokus otomatis: dialog ini muncul sebagai tanggapan atas tindakan
+          // pengguna, jadi kursor yang sudah siap di kolomnya adalah lanjutan
+          // yang wajar — bukan pengalihan fokus yang mengejutkan.
+          autoFocus
+          type="password"
+          value={sandi}
+          onChange={(e) => onUbah(e.target.value)}
+          placeholder="Sandi dekripsi"
+          disabled={sibuk}
+          className="w-full bg-secondary border border-border rounded-sm px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-60"
+          style={{ caretColor: "#c4824a" }}
+        />
+
+        {galat && (
+          <p className="text-xs flex items-start gap-1.5" style={{ color: "#e05252" }}>
+            <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+            {galat}
+          </p>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="submit"
+            disabled={!sandi || sibuk}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-sm text-xs transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+          >
+            {sibuk && <Loader2 size={12} className="animate-spin" />}
+            Buka berkas
+          </button>
+          <button
+            type="button"
+            onClick={onBatal}
+            disabled={sibuk}
+            className="px-3 py-2 rounded-sm text-xs border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            Batal
+          </button>
+        </div>
+
+        <p className="text-xs" style={{ color: "#4d5f78" }}>
+          Sandi dipakai sekali untuk mendekripsi di memori server, tidak disimpan di mana pun.
+        </p>
+      </form>
+    </div>
+  );
 }

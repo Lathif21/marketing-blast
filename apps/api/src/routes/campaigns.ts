@@ -9,6 +9,8 @@ import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
 import * as repo from "../campaign/repo.js";
 import { preflight } from "../campaign/preflight.js";
+import { JEDA_BAWAAN_JAM, LABEL_PEMICU, PEMICU, pemicuSah } from "../campaign/followup.js";
+import { JENDELA_DIAM_HARI } from "../campaign/engagement.js";
 
 interface BodyBuat {
   name?: string;
@@ -113,6 +115,158 @@ export async function campaignRoutes(app: FastifyInstance) {
     if (!updated) return reply.code(404).send({ pesan: "kampanye tidak ditemukan" });
     return updated;
   });
+
+  // ── Tindak lanjut ──────────────────────────────────────────────────────────
+
+  /**
+   * Komposisi reaksi atas kampanye ini, beserta daftar tindak lanjut yang
+   * sudah dibuat darinya.
+   *
+   * Satu permintaan, bukan dua: layar tindak lanjut selalu membutuhkan
+   * keduanya bersamaan — angka "berapa yang bereaksi" tidak berarti tanpa
+   * "sudah ditindaklanjuti atau belum".
+   */
+  app.get<{ Params: { id: string } }>("/campaigns/:id/tindak-lanjut", async (req, reply) => {
+    const campaign = await repo.get(req.params.id);
+    if (!campaign) return reply.code(404).send({ pesan: "kampanye tidak ditemukan" });
+
+    const [ringkasan, lanjutan] = await Promise.all([
+      repo.ringkasanTindakLanjut(req.params.id, JENDELA_DIAM_HARI),
+      repo.daftarLanjutan(req.params.id),
+    ]);
+
+    return {
+      campaign: { id: campaign.id, name: campaign.name, status: campaign.status },
+      jendela_diam_hari: JENDELA_DIAM_HARI,
+      ringkasan,
+      pemicu_tersedia: PEMICU.map((p) => ({ nilai: p, label: LABEL_PEMICU[p] })),
+      lanjutan: lanjutan.map((c) => ({
+        id: c.id,
+        name: c.name,
+        subject: c.subject,
+        status: c.status,
+        pemicu: c.pemicu,
+        jeda_lanjutan_jam: c.jeda_lanjutan_jam,
+        lanjutan_aktif: c.lanjutan_aktif,
+        created_at: c.created_at,
+      })),
+    };
+  });
+
+  /**
+   * Membuat kampanye tindak lanjut dari kampanye ini.
+   *
+   * Penerimanya TIDAK dipilih di sini dan tidak dapat dipilih: yang menentukan
+   * adalah pemicu — siapa pun penerima induk yang bereaksi sesuai pemicu, saat
+   * ini maupun minggu depan. Membiarkan daftar penerima ditetapkan di muka
+   * akan mengunci tindak lanjut pada orang yang kebetulan sudah bereaksi saat
+   * kampanyenya disusun, dan justru melewatkan yang bereaksi belakangan —
+   * padahal itulah yang membuat pekerjaan ini tidak perlu dilakukan manual.
+   */
+  app.post<{
+    Params: { id: string };
+    Body: {
+      name?: string;
+      subject?: string;
+      body_text?: string;
+      body_html?: string | null;
+      pemicu?: string;
+      jeda_lanjutan_jam?: number;
+      lanjutan_aktif?: boolean;
+    };
+  }>("/campaigns/:id/tindak-lanjut", async (req, reply) => {
+    const induk = await repo.get(req.params.id);
+    if (!induk) return reply.code(404).send({ pesan: "kampanye tidak ditemukan" });
+
+    // Berantai satu tingkat saja. Tindak lanjut dari tindak lanjut membentuk
+    // rantai yang tiap tingkatnya menyempit, dan yang paling mungkin terjadi
+    // adalah pengguna kehilangan jejak berapa email yang sebenarnya diterima
+    // satu orang. Kalau memang dibutuhkan, buat tindak lanjut kedua dari
+    // kampanye induk yang sama dengan pemicu berbeda.
+    if (induk.parent_campaign_id) {
+      return reply.code(422).send({
+        pesan: "kampanye ini sendiri adalah tindak lanjut — buat tindak lanjut dari kampanye induknya",
+        kind: "berantai",
+      });
+    }
+
+    const { name, subject, body_text } = req.body ?? {};
+    if (!name || !subject || !body_text) {
+      return reply.code(422).send({ pesan: "name, subject, dan body_text wajib diisi" });
+    }
+    if (!pemicuSah(req.body.pemicu)) {
+      return reply.code(422).send({
+        pesan: `pemicu wajib, salah satu dari: ${PEMICU.join(", ")}`,
+        kind: "pemicu_tidak_dikenal",
+      });
+    }
+
+    const jedaMentah = Number(req.body.jeda_lanjutan_jam ?? JEDA_BAWAAN_JAM);
+    const jeda = Number.isFinite(jedaMentah)
+      ? Math.min(Math.max(Math.floor(jedaMentah), 0), 24 * 90)
+      : JEDA_BAWAAN_JAM;
+
+    const lanjutan = await repo.create({
+      name,
+      subject,
+      bodyText: body_text,
+      bodyHtml: req.body.body_html ?? null,
+      // Domain pengirim mengikuti induk. Menindaklanjuti percakapan dari
+      // domain yang berbeda membuat penerima tidak mengenali pengirimnya, dan
+      // memecah reputasi yang sedang dibangun ke dua domain sekaligus.
+      senderDomain: induk.sender_domain,
+      parentCampaignId: induk.id,
+      pemicu: req.body.pemicu,
+      jedaLanjutanJam: jeda,
+      lanjutanAktif: req.body.lanjutan_aktif !== false,
+    });
+
+    return reply.code(201).send(lanjutan);
+  });
+
+  /** Menyalakan atau menghentikan pendaftaran bergulir. */
+  app.post<{ Params: { id: string }; Body: { aktif?: boolean } }>(
+    "/campaigns/:id/pendaftaran",
+    async (req, reply) => {
+      const aktif = req.body?.aktif !== false;
+      const updated = await repo.ubahLanjutanAktif(req.params.id, aktif);
+      if (!updated) {
+        return reply.code(404).send({
+          pesan: "kampanye tidak ditemukan atau bukan kampanye tindak lanjut",
+        });
+      }
+      return updated;
+    },
+  );
+
+  /**
+   * Menandai bahwa seorang penerima membalas.
+   *
+   * Jalur manual, berdampingan dengan jalur webhook surat masuk. Dibutuhkan
+   * karena balasan sering mendarat di kotak masuk biasa tim pemasaran, bukan
+   * di alamat yang terpasang receipt rule SES — dan tanpa jalur ini, sinyal
+   * ketertarikan paling kuat justru yang paling sering luput tercatat.
+   */
+  app.post<{ Params: { id: string }; Body: { email?: string; cuplikan?: string } }>(
+    "/campaigns/:id/balasan",
+    async (req, reply) => {
+      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+      if (!email) return reply.code(422).send({ pesan: "email pembalas wajib diisi" });
+
+      const hasil = await repo.catatBalasan({
+        email,
+        campaignId: req.params.id,
+        cuplikan: req.body?.cuplikan ?? null,
+      });
+      if (!hasil) {
+        return reply.code(404).send({
+          pesan: "tidak ada pengiriman ke alamat itu yang dapat ditautkan",
+        });
+      }
+      req.log.info({ email, campaign_id: hasil.campaign_id }, "balasan dicatat manual");
+      return hasil;
+    },
+  );
 
   app.get<{ Params: { id: string } }>("/campaigns/:id/report", async (req, reply) => {
     const campaign = await repo.get(req.params.id);

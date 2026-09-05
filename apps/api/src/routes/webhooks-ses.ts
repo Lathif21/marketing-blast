@@ -8,11 +8,20 @@
 
 import type { FastifyInstance } from "fastify";
 import { verifySnsMessage, isAllowedSnsUrl, type SnsMessage } from "../lib/sns.js";
-import { suppressByEmail } from "../suppression/repo.js";
-import { extractSuppressions, type SesNotification } from "../suppression/ses-events.js";
+import { suppressByEmail, tenantDariNotifikasi } from "../suppression/repo.js";
+import { dalamKonteks } from "../db.js";
+import {
+  extractEngagement,
+  extractReply,
+  extractSuppressions,
+  type SesNotification,
+} from "../suppression/ses-events.js";
+import { catatBalasan, catatEvent } from "../campaign/repo.js";
 
 interface Handled {
   suppressed: string[];
+  /** Event keterlibatan yang tercatat, misalnya `open` atau `click`. */
+  tercatat: string[];
   ignored: string[];
 }
 
@@ -65,17 +74,65 @@ export async function sesWebhookRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "Message bukan JSON" });
     }
 
-    const result: Handled = { suppressed: [], ignored: [] };
-    for (const { email, reason } of extractSuppressions(notification)) {
-      await suppressByEmail(email, reason);
-      result.suppressed.push(email);
+    const result: Handled = { suppressed: [], tercatat: [], ignored: [] };
+
+    // Pemilik ditentukan SEBELUM apa pun ditulis.
+    //
+    // Daftar penekanan sekarang per pelanggan (migrasi 010), jadi "alamat ini
+    // memantul keras" tidak lengkap tanpa "milik pelanggan mana". Notifikasi
+    // yang tidak dapat ditautkan ke satu pengiriman pun dicatat sebagai
+    // peringatan dan tidak ditulis ke mana-mana: menebak pemiliknya berarti
+    // menekan alamat pada pelanggan yang keliru, dan daftar penekanan tidak
+    // punya operasi hapus untuk membatalkannya.
+    const balasanAwal = extractReply(notification);
+    const tenantId = await tenantDariNotifikasi({
+      messageId: notification.mail?.messageId ?? balasanAwal?.inReplyTo ?? null,
+      email: balasanAwal?.email ?? null,
+    });
+
+    if (!tenantId) {
+      req.log.warn(
+        { messageId: notification.mail?.messageId, tipe: notification.notificationType },
+        "notifikasi SES tidak dapat ditautkan ke pelanggan mana pun — tidak diproses",
+      );
+      return reply.code(202).send({ diabaikan: "pemilik tidak dikenali" });
     }
 
-    if (result.suppressed.length === 0) {
-      result.ignored.push(notification.notificationType ?? notification.eventType ?? "unknown");
-    }
+    return dalamKonteks({ tenantId }, async () => {
+      for (const { email, reason } of extractSuppressions(notification)) {
+        await suppressByEmail(email, reason);
+        result.suppressed.push(email);
+      }
 
-    req.log.info(result, "notifikasi SES diproses");
-    return reply.code(200).send(result);
+      // Buka dan klik dicatat di sini, bukan lewat pelacak sendiri. Inilah yang
+      // mengisi `opened_at` dan `clicked_at` — dua kolom yang menentukan siapa
+      // yang masuk kampanye tindak lanjut dan siapa yang akhirnya dinilai diam.
+      const event = extractEngagement(notification);
+      if (event && (await catatEvent(event.messageId, event.jenis))) {
+        result.tercatat.push(event.jenis);
+      }
+
+      // Balasan: sinyal ketertarikan terkuat, dan satu-satunya yang datang lewat
+      // surat masuk alih-alih lewat event pengiriman.
+      const balasan = balasanAwal;
+      if (balasan) {
+        const tertaut = await catatBalasan({
+          messageId: balasan.inReplyTo,
+          email: balasan.email,
+          cuplikan: balasan.subject,
+        });
+        if (tertaut) result.tercatat.push("reply");
+        else {
+          req.log.info({ email: balasan.email }, "balasan tidak tertaut ke pengiriman mana pun");
+        }
+      }
+
+      if (result.suppressed.length === 0 && result.tercatat.length === 0) {
+        result.ignored.push(notification.notificationType ?? notification.eventType ?? "unknown");
+      }
+
+      req.log.info({ ...result, tenant: tenantId }, "notifikasi SES diproses");
+      return reply.code(200).send(result);
+    });
   });
 }
