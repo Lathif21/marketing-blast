@@ -30,6 +30,9 @@ import { aktifkanKontak, karantinakanKontak } from "../contacts/activate.js";
 import * as tenantRepo from "../tenants/repo.js";
 import { buatPengguna, bacaSesi, buatSesi, verifikasiKredensial } from "../auth/repo.js";
 import { hashSandi, sandiCocok } from "../auth/password.js";
+import { klienTiruan } from "../gmail/klien.js";
+import { sinkronkan } from "../gmail/sinkron.js";
+import type { PesanRingkas } from "../gmail/analisis.js";
 import { runFollowupWorker } from "../jobs/followup-worker.js";
 import { nilaiUlangRespons, hapusKontakDiam } from "../contacts/respons.js";
 import { JENDELA_DIAM_HARI } from "../campaign/engagement.js";
@@ -1099,6 +1102,132 @@ async function ujiPembekuanDanAkun() {
   ok("kuota null berarti tanpa batas", (await tenantRepo.sisaKuotaKontak(TENANT)) === null);
 }
 
+async function ujiGmail() {
+  bagian("Integrasi Gmail — balasan tercatat, korespondensi dua arah masuk");
+
+  await bersihkan();
+  await setTahap(5);
+  await buatKontak(2, "g");
+
+  const induk = await buatKampanye("Perkenalan untuk uji Gmail");
+  await kampanye.susunAntrean(induk.id);
+  await runSendWorker();
+
+  const { rows: terkirim } = await adminPool.query<{ email: string; message_id: string }>(
+    `SELECT email::text AS email, message_id
+       FROM campaign_recipients WHERE campaign_id = $1 ORDER BY email`,
+    [induk.id],
+  );
+
+  const KOTAK = "sales@perusahaan.co.id";
+  const koneksi = {
+    id: "00000000-0000-4000-8000-00000000aaaa",
+    email: KOTAK,
+    sinkron_sampai: null,
+    terhubung_oleh: "uji@regresi.id",
+  };
+
+  let nomor = 0;
+  const pesan = (p: Partial<PesanRingkas> & { dari: string }): PesanRingkas => {
+    nomor += 1;
+    return {
+      id: `m${nomor}`,
+      threadId: `t${nomor}`,
+      waktu: Date.now() - (100 - nomor) * 60_000,
+      kepada: [],
+      subjek: null,
+      inReplyTo: null,
+      references: null,
+      ...p,
+    };
+  };
+
+  // Alamat yang sudah menolak: tidak boleh masuk kembali lewat jalur mana pun.
+  await adminPool.query(
+    "INSERT INTO suppression (email, reason, tenant_id) VALUES ($1, 'unsubscribe', $2)",
+    ["tertekan@klien.id", TENANT],
+  );
+
+  const kotakMasuk: PesanRingkas[] = [
+    // Penerima kampanye membalas — inilah yang selama ini luput tercatat.
+    pesan({
+      dari: `"Uji Nol" <g0@uji.id>`,
+      kepada: [KOTAK],
+      subjek: "Re: Penawaran untuk PT Uji 0",
+      inReplyTo: `<${terkirim[0].message_id}@blast.contoh.id>`,
+    }),
+    // Korespondensi dua arah dengan orang yang belum menjadi kontak.
+    pesan({ dari: `"Budi Santoso" <budi@calon.id>`, kepada: [KOTAK] }),
+    pesan({ dari: KOTAK, kepada: ["budi@calon.id"] }),
+    // Satu arah — tidak pernah dibalas.
+    pesan({ dari: "kabar@buletin.id", kepada: [KOTAK] }),
+    // Dua arah tapi kiriman massal.
+    pesan({ dari: "promo@toko.id", kepada: [KOTAK], listUnsubscribe: "<https://toko.id/u>" }),
+    pesan({ dari: KOTAK, kepada: ["promo@toko.id"] }),
+    // Dua arah tapi sudah menolak.
+    pesan({ dari: "tertekan@klien.id", kepada: [KOTAK] }),
+    pesan({ dari: KOTAK, kepada: ["tertekan@klien.id"] }),
+  ];
+
+  const hasil = await sinkronkan(koneksi, klienTiruan(kotakMasuk));
+
+  ok("balasan kampanye tercatat", hasil.balasan === 1, `${hasil.balasan}`);
+
+  const { rows: balasan } = await adminPool.query<{ replied_at: string | null }>(
+    "SELECT replied_at FROM campaign_recipients WHERE email = $1",
+    [terkirim[0].email],
+  );
+  ok("replied_at terisi pada penerima yang benar", balasan[0]?.replied_at !== null);
+
+  ok("satu kontak baru dari korespondensi dua arah", hasil.kontakBaru === 1, `${hasil.kontakBaru}`);
+
+  const { rows: kontak } = await adminPool.query<{
+    email: string;
+    consent_source: string;
+    consent_strength: string;
+    status: string;
+    company_name: string | null;
+  }>(
+    `SELECT email::text AS email, consent_source::text AS consent_source,
+            consent_strength::text AS consent_strength, status::text AS status, company_name
+       FROM contacts WHERE email = 'budi@calon.id'`,
+  );
+  ok("kontak tersimpan dengan sumber izin korespondensi", kontak[0]?.consent_source === "korespondensi_dua_arah", kontak[0]?.consent_source ?? "-");
+  ok("kekuatan izinnya kuat", kontak[0]?.consent_strength === "kuat");
+  ok("langsung aktif, bukan karantina", kontak[0]?.status === "aktif", kontak[0]?.status ?? "-");
+  ok("nama tampilan ikut tersimpan", kontak[0]?.company_name === "Budi Santoso", kontak[0]?.company_name ?? "-");
+
+  // ── Yang TIDAK boleh masuk ────────────────────────────────────────────────
+  const tidakAda = async (email: string) => {
+    const { rowCount } = await adminPool.query("SELECT 1 FROM contacts WHERE email = $1", [email]);
+    return (rowCount ?? 0) === 0;
+  };
+
+  ok("alamat satu arah tidak menjadi kontak", await tidakAda("kabar@buletin.id"));
+  ok("kiriman massal tidak menjadi kontak meski dibalas", await tidakAda("promo@toko.id"));
+  ok("alamat di daftar penekanan tidak pernah masuk kembali", await tidakAda("tertekan@klien.id"));
+
+  // Dua, bukan satu: selain buletin, penerima kampanye yang membalas juga
+  // terhitung satu arah DARI SUDUT KOTAK MASUK INI — kampanyenya dikirim lewat
+  // SES, bukan dari Gmail. Itu benar dan tidak merugikan: ia sudah menjadi
+  // kontak, jadi memang bukan kandidat impor.
+  ok("alasan penolakan dilaporkan apa adanya", hasil.ditolak.satu_arah === 2, JSON.stringify(hasil.ditolak));
+
+  // ── Idempoten ─────────────────────────────────────────────────────────────
+  //
+  // Jendela `after:` di Gmail hanya berketelitian hari, jadi putaran berikutnya
+  // PASTI membaca ulang sebagian pesan yang sama. Itu tidak boleh menghasilkan
+  // kontak ganda maupun balasan yang terhitung dua kali.
+  const ulang = await sinkronkan(koneksi, klienTiruan(kotakMasuk));
+  ok("putaran kedua tidak menambah kontak", ulang.kontakBaru === 0, `${ulang.kontakBaru}`);
+  ok("putaran kedua tidak menghitung balasan lagi", ulang.balasan === 0, `${ulang.balasan}`);
+
+  const { rows: jumlah } = await adminPool.query<{ n: string }>(
+    "SELECT count(*)::text AS n FROM contacts WHERE email = 'budi@calon.id'",
+  );
+  ok("tidak ada kontak ganda", jumlah[0].n === "1", jumlah[0].n);
+}
+
 async function main() {
   pastikanBasisDataUji(config.db.adminUrl);
   console.log(`Basis data uji : ${new URL(config.db.adminUrl).pathname.slice(1)}`);
@@ -1132,6 +1261,7 @@ async function main() {
   await sebagaiTenant(ujiHakPeranAplikasi);
   await ujiIsolasiTenant();
   await sebagaiTenant(ujiPembekuanDanAkun);
+  await sebagaiTenant(ujiGmail);
 
   await bersihkan();
   await pool.end();

@@ -10,9 +10,9 @@ import type { Screen } from "../lib/types";
 
 /** Warna dan penjelasan tiap kelompok status. Bukan data — hanya penyajian. */
 const KELOMPOK = [
-  { key: "aktif" as const,     label: "Aktif",                 color: "#5cc9a0", bar: "#2b7a5a", sub: "Siap dikirim" },
-  { key: "karantina" as const, label: "Karantina",             color: "#d4a040", bar: "#92680a", sub: "Perlu verifikasi alamat" },
-  { key: "diblokir" as const,  label: "Diblokir / Suppressed",  color: "#e05252", bar: "#8c2e2e", sub: "Tidak dapat dikirim" },
+  { key: "aktif" as const,     label: "Aktif",                 color: "var(--sukses)", bar: "var(--sukses-kuat)", sub: "Siap dikirim" },
+  { key: "karantina" as const, label: "Karantina",             color: "var(--peringatan)", bar: "var(--peringatan-kuat)", sub: "Perlu verifikasi alamat" },
+  { key: "diblokir" as const,  label: "Diblokir / Suppressed",  color: "var(--bahaya)", bar: "var(--bahaya-kuat)", sub: "Tidak dapat dikirim" },
 ];
 
 export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
@@ -60,7 +60,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => voi
           </div>
 
           <div className="flex items-start gap-2 mt-2">
-            <AlertCircle size={12} style={{ color: "#6a82a0", flexShrink: 0, marginTop: 2 }} />
+            <AlertCircle size={12} style={{ color: "var(--muted-foreground)", flexShrink: 0, marginTop: 2 }} />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Yang sudah dapat dikerjakan sekarang: mengimpor kontak dan melihat daftar penekanan.
               Keduanya membaca data sungguhan.
@@ -89,7 +89,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => voi
                   <button
                     onClick={() => onNavigate("import")}
                     className="px-3 py-1.5 text-xs rounded-sm"
-                    style={{ backgroundColor: "#c4824a", color: "#fff" }}
+                    style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
                   >
                     Impor Kontak
                   </button>

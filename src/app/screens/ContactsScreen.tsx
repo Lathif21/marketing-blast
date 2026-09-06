@@ -168,7 +168,7 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
           <SectionTitle label="Daftar Kontak" />
-          <p className="text-xs text-muted-foreground -mt-3">
+          <p className="text-sm text-muted-foreground max-w-3xl">
             {data ? (
               <>
                 <Num>{data.total.toLocaleString("id-ID")}</Num> kontak cocok dengan filter saat ini
@@ -190,7 +190,7 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-card border border-border rounded-sm pl-7 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none w-64"
-              style={{ caretColor: "#c4824a" }}
+              style={{ caretColor: "var(--primary)" }}
             />
           </div>
           <select
@@ -212,9 +212,9 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                 onClick={() => gantiStatus(f)}
                 className="px-2.5 py-1.5 text-xs rounded-sm capitalize transition-all"
                 style={{
-                  backgroundColor: statusFilter === f ? "#c4824a" : "rgba(100,140,180,0.07)",
-                  color: statusFilter === f ? "#fff" : "#8da0b8",
-                  border: `1px solid ${statusFilter === f ? "#c4824a" : "rgba(100,140,180,0.12)"}`,
+                  backgroundColor: statusFilter === f ? "var(--primary)" : "rgb(var(--kabut-rgb) / 0.07)",
+                  color: statusFilter === f ? "var(--primary-foreground)" : "var(--secondary-foreground)",
+                  border: `1px solid ${statusFilter === f ? "var(--primary)" : "rgb(var(--kabut-rgb) / 0.12)"}`,
                 }}
               >
                 {f === "semua" ? "Semua" : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -228,9 +228,9 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
         <div
           className="rounded-sm p-3 mb-3 text-xs border"
           style={{
-            backgroundColor: kabar.nada === "ok" ? "rgba(43,122,90,0.12)" : "rgba(140,46,46,0.14)",
-            borderColor: kabar.nada === "ok" ? "rgba(92,201,160,0.3)" : "rgba(224,82,82,0.28)",
-            color: kabar.nada === "ok" ? "#5cc9a0" : "#e05252",
+            backgroundColor: kabar.nada === "ok" ? "rgb(var(--sukses-rgb) / 0.12)" : "rgb(var(--bahaya-rgb) / 0.14)",
+            borderColor: kabar.nada === "ok" ? "rgb(var(--sukses-rgb) / 0.3)" : "rgb(var(--bahaya-rgb) / 0.28)",
+            color: kabar.nada === "ok" ? "var(--sukses)" : "var(--bahaya)",
           }}
         >
           {kabar.teks}
@@ -282,7 +282,7 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                   <button
                     onClick={() => onNavigate("import")}
                     className="px-3 py-1.5 text-xs rounded-sm"
-                    style={{ backgroundColor: "#c4824a", color: "#fff" }}
+                    style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
                   >
                     Impor Kontak
                   </button>
@@ -318,19 +318,19 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                   style={{
                     backgroundColor:
                       c.status === "karantina"
-                        ? "rgba(180,120,30,0.05)"
+                        ? "rgb(var(--peringatan-rgb) / 0.05)"
                         : c.status === "diblokir"
-                          ? "rgba(140,46,46,0.05)"
+                          ? "rgb(var(--bahaya-rgb) / 0.05)"
                           : undefined,
                     borderLeft:
                       c.status === "karantina"
-                        ? "2px solid rgba(212,160,64,0.45)"
+                        ? "2px solid rgb(var(--peringatan-rgb) / 0.45)"
                         : c.status === "diblokir"
-                          ? "2px solid rgba(224,82,82,0.45)"
+                          ? "2px solid rgb(var(--bahaya-rgb) / 0.45)"
                           : "2px solid transparent",
                   }}
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <input
                       type="checkbox"
                       checked={terpilih.has(c.id)}
@@ -341,11 +341,11 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                   <td className="px-3 py-2 font-medium text-foreground">
                     <Truncate maxWidth="260px">{c.company}</Truncate>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <Mono className="text-muted-foreground">{c.email}</Mono>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{CONSENT_LABELS[c.consent]}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     {/*
                       Peringatan dipicu asal alamat, bukan sumber izin. Alamat hasil
                       tebakan adalah penyebab utama pemantulan keras — itulah yang
@@ -355,15 +355,15 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
                       <StatusBadge status={c.status} />
                       {c.emailOrigin === "guessed" && (
                         <span className="inline-flex" title={QUARANTINE_REASON}>
-                          <AlertTriangle size={11} style={{ color: "#d4a040", flexShrink: 0 }} />
+                          <AlertTriangle size={11} style={{ color: "var(--peringatan)", flexShrink: 0 }} />
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <Num className="text-muted-foreground">{c.date}</Num>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <button className="text-muted-foreground hover:text-foreground transition-colors">
                       <Eye size={13} />
                     </button>
@@ -393,7 +393,7 @@ export function ContactsScreen({ onNavigate }: { onNavigate?: (s: "import") => v
       )}
 
       {status === "gagal" && items.length > 0 && (
-        <p className="mt-2 text-xs" style={{ color: "#d4a040" }}>
+        <p className="mt-2 text-xs" style={{ color: "var(--peringatan)" }}>
           Gagal menyegarkan: {error}. Yang tampil di atas adalah data terakhir yang berhasil dimuat.
         </p>
       )}

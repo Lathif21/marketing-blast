@@ -41,12 +41,12 @@ export const CAMPAIGNS: Campaign[] = [
 export const REPORT_CAMPAIGN_ID = "C001";
 
 export const FUNNEL: FunnelStage[] = [
-  { key: "terkirim",     label: "Terkirim",              value: 450, color: "#2b7a5a", of: null,           ofLabel: null               },
-  { key: "tersampaikan", label: "Tersampaikan",          value: 441, color: "#2b7a5a", of: "terkirim",     ofLabel: null               },
-  { key: "dibuka",       label: "Dibuka",                value: 187, color: "#c4824a", of: "tersampaikan", ofLabel: null               },
-  { key: "diklik",       label: "Diklik",                value: 43,  color: "#c4824a", of: "dibuka",       ofLabel: null               },
-  { key: "bounced",      label: "Bounced",               value: 9,   color: "#8c2e2e", of: "terkirim",     ofLabel: "dr. terkirim"     },
-  { key: "unsub",        label: "Berhenti Berlangganan", value: 3,   color: "#8c2e2e", of: "tersampaikan", ofLabel: "dr. tersampaikan" },
+  { key: "terkirim",     label: "Terkirim",              value: 450, color: "var(--sukses-kuat)", of: null,           ofLabel: null               },
+  { key: "tersampaikan", label: "Tersampaikan",          value: 441, color: "var(--sukses-kuat)", of: "terkirim",     ofLabel: null               },
+  { key: "dibuka",       label: "Dibuka",                value: 187, color: "var(--keterlibatan)", of: "tersampaikan", ofLabel: null               },
+  { key: "diklik",       label: "Diklik",                value: 43,  color: "var(--keterlibatan-kuat)", of: "dibuka",       ofLabel: null               },
+  { key: "bounced",      label: "Bounced",               value: 9,   color: "var(--bahaya-kuat)", of: "terkirim",     ofLabel: "dr. terkirim"     },
+  { key: "unsub",        label: "Berhenti Berlangganan", value: 3,   color: "var(--bahaya-kuat)", of: "tersampaikan", ofLabel: "dr. tersampaikan" },
 ];
 
 export const funnelValue = (key: string) => FUNNEL.find((f) => f.key === key)?.value ?? 0;

@@ -19,8 +19,8 @@ export function LoadingRow({ label = "Memuat…" }: { label?: string }) {
 export function ErrorRow({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="py-8 px-4 flex flex-col items-center gap-2 text-center">
-      <AlertTriangle size={16} style={{ color: "#e05252" }} />
-      <p className="text-xs" style={{ color: "#e05252" }}>
+      <AlertTriangle size={16} style={{ color: "var(--bahaya)" }} />
+      <p className="text-xs" style={{ color: "var(--bahaya)" }}>
         Data tidak dapat dimuat
       </p>
       <p className="text-xs text-muted-foreground max-w-md">{message}</p>

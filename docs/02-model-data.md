@@ -57,6 +57,29 @@ Pelanggan tidak dihapus lewat aplikasi — statusnya menjadi `nonaktif`. Hak
 menghapus seluruh kontak, kampanye, dan jejak pengiriman lewat
 `ON DELETE CASCADE`, termasuk angka pemantulan yang menjadi dasar reputasi.
 
+### `gmail_connections`
+
+Satu baris per kotak masuk yang tersambung, per pelanggan. Bertenant dan
+dilindungi RLS seperti data pelanggan lain.
+
+| Kolom | Keterangan |
+|---|---|
+| `email`, `google_sub` | Kotak masuk dan pengenal akun Google yang stabil |
+| `refresh_token` | **Terenkripsi** AES-256-GCM (`lib/rahasia.ts`). `NULL` bila koneksinya berakhir |
+| `status` | `aktif`, `perlu_sambung_ulang`, `dicabut` |
+| `sinkron_sampai` | Batas waktu putaran berikutnya. Tanpa ini setiap putaran membaca ulang seluruh kotak masuk |
+| `balasan_tercatat`, `kontak_ditambahkan` | Angka ringkas, hanya untuk ditampilkan |
+
+Isi pesan **tidak pernah** disimpan, dan tidak pernah diminta dari Google —
+yang diambil hanya header tertentu lewat `format=metadata`. Memutus koneksi
+tidak menghapus barisnya: tokennya dibuang, statusnya menjadi `dicabut`, dan
+jejak siapa pernah menyambungkan kotak masuk apa tetap ada.
+
+Kontak yang masuk lewat jalur ini memakai `consent_source =
+korespondensi_dua_arah` berkekuatan `kuat`. Nilai itu tidak dapat dipilih pada
+impor berkas — hanya jalur Gmail yang boleh menetapkannya, karena hanya jalur
+itu yang dapat membuktikannya.
+
 ### `users`, `sessions`, `admin_audit`
 
 Ketiganya **tanpa** RLS, dan itu disengaja: merekalah yang menetapkan konteks

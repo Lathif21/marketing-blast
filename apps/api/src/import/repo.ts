@@ -10,8 +10,25 @@ export type ConsentSource =
   | "pameran"
   | "referral"
   | "alamat_generik_terpublikasi"
+  /**
+   * Alamat yang pernah berkorespondensi DUA ARAH dengan tim, ditemukan lewat
+   * integrasi Gmail. Dasar izin terkuat yang dimiliki sistem ini: yang menjadi
+   * dasarnya adalah percakapan yang benar-benar terjadi, bukan alamat yang
+   * kebetulan terpublikasi.
+   *
+   * TIDAK dapat dipilih pada impor berkas — hanya jalur Gmail yang boleh
+   * menetapkannya, karena hanya jalur itu yang dapat membuktikannya.
+   */
+  | "korespondensi_dua_arah"
   | "lainnya";
 
+/**
+ * Sumber izin yang dapat DIPILIH pengguna saat mengimpor berkas.
+ *
+ * `korespondensi_dua_arah` sengaja tidak ada di sini: ia menyatakan bukti yang
+ * hanya dapat ditegakkan jalur Gmail (percakapan yang benar-benar terjadi).
+ * Membiarkannya dapat dipilih pada impor CSV mengubah bukti menjadi klaim.
+ */
 export const CONSENT_SOURCES: ConsentSource[] = [
   "pelanggan_existing",
   "formulir_web",
@@ -20,6 +37,16 @@ export const CONSENT_SOURCES: ConsentSource[] = [
   "referral",
   "alamat_generik_terpublikasi",
   "lainnya",
+];
+
+/**
+ * Seluruh nilai yang sah ADA di basis data — termasuk yang tidak dapat dipilih
+ * saat impor. Dipakai memvalidasi penyaring daftar kontak, yang harus dapat
+ * menyaring apa pun yang benar-benar tersimpan.
+ */
+export const SEMUA_CONSENT_SOURCE: ConsentSource[] = [
+  ...CONSENT_SOURCES,
+  "korespondensi_dua_arah",
 ];
 
 export type ConsentStrength = "kuat" | "cukup" | "perlu_ditinjau";
@@ -35,6 +62,7 @@ export function consentStrengthOf(source: ConsentSource): ConsentStrength {
   switch (source) {
     case "pelanggan_existing":
     case "formulir_web":
+    case "korespondensi_dua_arah":
       return "kuat";
     case "izin_lisan":
     case "pameran":

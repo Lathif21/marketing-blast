@@ -95,37 +95,37 @@ export function ReportScreen() {
                 {/* Sumbu memuat pengenal kampanye dan angka, jadi tetap monospace. */}
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 10, fontFamily: MONO_STACK, fill: "#6a82a0" }}
+                  tick={{ fontSize: 12, fontFamily: MONO_STACK, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fontFamily: MONO_STACK, fill: "#6a82a0" }}
+                  tick={{ fontSize: 12, fontFamily: MONO_STACK, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
                   unit="%"
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#141e2e",
-                    border: "1px solid rgba(100,140,180,0.14)",
+                    backgroundColor: "var(--card)",
+                    border: "1px solid rgb(var(--kabut-rgb) / 0.14)",
                     borderRadius: "2px",
-                    fontSize: "11px",
+                    fontSize: "13px",
                     fontFamily: SANS_STACK,
                   }}
-                  labelStyle={{ color: "#dce3ec", fontFamily: MONO_STACK }}
-                  itemStyle={{ color: "#8da0b8" }}
+                  labelStyle={{ color: "var(--foreground)", fontFamily: MONO_STACK }}
+                  itemStyle={{ color: "var(--secondary-foreground)" }}
                 />
                 {/* Label legenda adalah prosa. */}
                 <Legend
                   verticalAlign="bottom"
                   height={22}
                   iconSize={8}
-                  wrapperStyle={{ fontSize: "10px", fontFamily: SANS_STACK, color: "#8da0b8" }}
+                  wrapperStyle={{ fontSize: "12px", fontFamily: SANS_STACK, color: "var(--secondary-foreground)" }}
                 />
-                <Bar dataKey="buka" name="Dibuka" fill="#2b7a5a" />
-                <Bar dataKey="klik" name="Diklik" fill="#c4824a" />
-                <Bar dataKey="bounce" name="Bounced" fill="#8c2e2e" />
+                <Bar dataKey="buka" name="Dibuka" fill="var(--keterlibatan)" />
+                <Bar dataKey="klik" name="Diklik" fill="var(--keterlibatan-kuat)" />
+                <Bar dataKey="bounce" name="Bounced" fill="var(--bahaya-kuat)" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -142,14 +142,14 @@ export function ReportScreen() {
               >
                 <div className="flex justify-between mb-0.5">
                   <span className="text-xs text-muted-foreground">{item.label}</span>
-                  <Num className="text-xs" style={{ color: item.warn ? "#d4a040" : "#5cc9a0" }}>
+                  <Num className="text-xs" style={{ color: item.warn ? "var(--peringatan)" : "var(--sukses)" }}>
                     {item.delta}
                   </Num>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <Num className="text-muted-foreground">{item.before}</Num>
                   <span className="text-muted-foreground">→</span>
-                  <Num style={{ color: item.warn ? "#d4a040" : "#dce3ec" }}>{item.after}</Num>
+                  <Num style={{ color: item.warn ? "var(--peringatan)" : "var(--foreground)" }}>{item.after}</Num>
                 </div>
               </div>
             ))}
@@ -160,11 +160,11 @@ export function ReportScreen() {
               Metrik ringkas
             </PanelLabel>
             {[
-              { label: "Terkirim",       value: sent.toLocaleString("id-ID"), color: "#dce3ec" },
-              { label: "Tingkat Buka",   value: rate("dibuka"),               color: "#5cc9a0" },
-              { label: "Tingkat Klik",   value: rate("diklik"),               color: "#c4824a" },
-              { label: "Tingkat Bounce", value: rate("bounced"),              color: "#d4a040" },
-              { label: "Berhenti Lgg.",  value: rate("unsub"),                color: "#e05252" },
+              { label: "Terkirim",       value: sent.toLocaleString("id-ID"), color: "var(--foreground)" },
+              { label: "Tingkat Buka",   value: rate("dibuka"),               color: "var(--sukses)" },
+              { label: "Tingkat Klik",   value: rate("diklik"),               color: "var(--primary)" },
+              { label: "Tingkat Bounce", value: rate("bounced"),              color: "var(--peringatan)" },
+              { label: "Berhenti Lgg.",  value: rate("unsub"),                color: "var(--bahaya)" },
             ].map((m) => (
               <div key={m.label} className="flex justify-between py-1.5 border-b border-border last:border-0">
                 <span className="text-xs text-muted-foreground">{m.label}</span>

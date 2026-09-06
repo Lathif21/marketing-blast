@@ -34,7 +34,7 @@ function Memuat() {
   return (
     <div
       className="h-screen flex items-center justify-center gap-2 text-xs"
-      style={{ backgroundColor: "#0a1018", color: "#6a82a0" }}
+      style={{ backgroundColor: "var(--background)", color: "var(--muted-foreground)" }}
     >
       <Loader2 size={14} className="animate-spin" />
       Memuat…
@@ -124,11 +124,11 @@ export default function App() {
             <div
               className="px-6 py-2 flex-shrink-0"
               style={{
-                backgroundColor: "rgba(180,120,30,0.15)",
-                borderBottom: "1px solid rgba(212,160,64,0.25)",
+                backgroundColor: "rgb(var(--peringatan-rgb) / 0.15)",
+                borderBottom: "1px solid rgb(var(--peringatan-rgb) / 0.25)",
               }}
             >
-              <p className="text-xs leading-relaxed" style={{ color: "#d4a040" }}>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--peringatan)" }}>
                 <strong>Pengiriman dibekukan penyedia layanan.</strong>{" "}
                 {sesi.tenant.alasan_beku} — Data Anda tetap utuh dan dapat dilihat seperti biasa;
                 yang berhenti hanyalah pengiriman kampanye.
@@ -137,7 +137,7 @@ export default function App() {
           )}
           <main
             className="flex-1 overflow-y-auto"
-            style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(100,140,180,0.18) transparent" }}
+            style={{ scrollbarWidth: "thin", scrollbarColor: "rgb(var(--kabut-rgb) / 0.18) transparent" }}
           >
             {screen === "dashboard" && <DashboardScreen onNavigate={setScreen} />}
             {screen === "import" && <ImportScreen />}

@@ -263,8 +263,16 @@ export async function campaignRoutes(app: FastifyInstance) {
           pesan: "tidak ada pengiriman ke alamat itu yang dapat ditautkan",
         });
       }
-      req.log.info({ email, campaign_id: hasil.campaign_id }, "balasan dicatat manual");
-      return hasil;
+      req.log.info(
+        { email, campaign_id: hasil.campaign_id, baru: hasil.baru },
+        "balasan dicatat manual",
+      );
+      return {
+        ...hasil,
+        pesan: hasil.baru
+          ? "Balasan tercatat."
+          : "Balasan dari alamat ini memang sudah tercatat sebelumnya.",
+      };
     },
   );
 

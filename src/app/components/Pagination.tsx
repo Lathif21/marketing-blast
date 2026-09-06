@@ -74,9 +74,9 @@ export function Pagination({
         aria-current={aktif ? "page" : undefined}
         className="min-w-[26px] h-[26px] px-1.5 rounded-sm text-xs transition-colors flex items-center justify-center"
         style={{
-          backgroundColor: aktif ? "#c4824a" : "transparent",
-          color: aktif ? "#fff" : mati ? "#3d4d63" : "#8da0b8",
-          border: `1px solid ${aktif ? "#c4824a" : "rgba(100,140,180,0.12)"}`,
+          backgroundColor: aktif ? "var(--primary)" : "transparent",
+          color: aktif ? "var(--primary-foreground)" : mati ? "var(--samar)" : "var(--secondary-foreground)",
+          border: `1px solid ${aktif ? "var(--primary)" : "rgb(var(--kabut-rgb) / 0.12)"}`,
           cursor: mati ? "default" : "pointer",
         }}
       >
@@ -121,7 +121,7 @@ export function Pagination({
 
             {nomorHalaman(page, totalPages).map((n, i) =>
               n === null ? (
-                <span key={`gap-${i}`} className="px-1 text-xs" style={{ color: "#3d4d63" }}>
+                <span key={`gap-${i}`} className="px-1 text-xs" style={{ color: "var(--samar)" }}>
                   …
                 </span>
               ) : (

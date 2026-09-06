@@ -7,6 +7,7 @@ import { runSendWorker } from "./send-worker.js";
 import { perTenant } from "./per-tenant.js";
 import { sapuSesiKedaluwarsa } from "../auth/repo.js";
 import { runFollowupWorker } from "./followup-worker.js";
+import { runGmailSync } from "./gmail-worker.js";
 import { runEngagementRecalc, runRetentionSweep } from "./respons-worker.js";
 
 export interface Job {
@@ -56,6 +57,16 @@ export const JOBS: Job[] = [
     phase: 4,
     // Daftarkan penerima yang bereaksi ke kampanye tindak lanjutnya.
     run: perTenant("aktif", "followup", runFollowupWorker),
+  },
+  {
+    name: "gmail-sync",
+    // Balasan adalah sinyal ketertarikan terkuat, dan jeda tindak lanjut
+    // diukur dalam jam — memeriksa tiap sepuluh menit sudah jauh lebih cepat
+    // daripada yang dibutuhkan, sekaligus menahan pemakaian kuota Gmail API.
+    intervalMs: 10 * MINUTE,
+    phase: 5,
+    // Baca kotak masuk yang tersambung: catat balasan, impor korespondensi.
+    run: perTenant("hidup", "gmail", runGmailSync),
   },
   {
     name: "engagement-recalc",

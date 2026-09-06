@@ -69,7 +69,7 @@ function Kartu({
   label,
   nilai,
   keterangan,
-  warna = "#dce3ec",
+  warna = "var(--foreground)",
 }: {
   label: string;
   nilai: number;
@@ -113,7 +113,7 @@ export function FollowUpScreen() {
     <div className="p-6 space-y-5">
       <div>
         <SectionTitle label="Tindak Lanjut" />
-        <p className="text-xs text-muted-foreground -mt-3 max-w-3xl leading-relaxed">
+        <p className="text-sm text-muted-foreground max-w-3xl">
           Kampanye pertama hanya mengajak berkenalan. Yang bereaksi ditindaklanjuti otomatis
           lewat kampanye lanjutan; yang tidak bereaksi berhenti dikirimi dengan sendirinya —
           mereka tidak memenuhi pemicu mana pun.
@@ -201,34 +201,34 @@ function PanelKampanye({
         <Kartu
           label="Bereaksi"
           nilai={r.bereaksi}
-          warna="#5cc9a0"
+          warna="var(--keterlibatan)"
           keterangan="Membuka, mengklik, atau membalas — layak ditindaklanjuti"
         />
         <Kartu
           label="Membalas"
           nilai={r.membalas}
-          warna="#5cc9a0"
+          warna="var(--keterlibatan)"
           keterangan="Sinyal terkuat: membuka bisa tidak sengaja, membalas tidak"
         />
         <Kartu
           label="Menunggu"
           nilai={r.menunggu}
-          warna="#d4a040"
+          warna="var(--peringatan)"
           keterangan={`Belum bereaksi, belum ${data.jendela_diam_hari} hari — masih bisa berubah`}
         />
         <Kartu
           label="Tanpa respons"
           nilai={r.diam}
-          warna="#6a82a0"
+          warna="var(--muted-foreground)"
           keterangan={`Lewat ${data.jendela_diam_hari} hari tanpa reaksi. Berhenti dikirimi dengan sendirinya`}
         />
       </div>
 
       {r.menolak > 0 && (
         <div className="bg-card border border-border rounded-sm p-3 flex items-start gap-2">
-          <AlertTriangle size={13} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
+          <AlertTriangle size={13} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <Num style={{ color: "#e05252" }}>{r.menolak}</Num> penerima menolak — keluhan spam
+            <Num style={{ color: "var(--bahaya)" }}>{r.menolak}</Num> penerima menolak — keluhan spam
             atau berhenti berlangganan. Mereka tidak pernah masuk kampanye lanjutan, termasuk bila
             sebelumnya sempat membuka email. Penolakan mengalahkan reaksi, dan itu tidak dapat
             dinonaktifkan.
@@ -238,7 +238,7 @@ function PanelKampanye({
 
       {r.terkirim > 0 && r.dibuka === 0 && (
         <div className="bg-card border border-border rounded-sm p-3 flex items-start gap-2">
-          <AlertTriangle size={13} style={{ color: "#d4a040", flexShrink: 0, marginTop: 1 }} />
+          <AlertTriangle size={13} style={{ color: "var(--peringatan)", flexShrink: 0, marginTop: 1 }} />
           <p className="text-xs text-muted-foreground leading-relaxed">
             Belum ada satu pun pembukaan tercatat. Pembukaan hanya terdeteksi kalau klien email
             penerima memuat gambar pelacak, dan sebagian besar klien perusahaan memblokirnya —
@@ -261,7 +261,7 @@ function PanelKampanye({
       </div>
 
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -307,7 +307,7 @@ function DaftarLanjutan({
           <tbody>
             {data.lanjutan.map((c) => (
               <tr key={c.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Truncate maxWidth="240px" className="text-foreground">
                     {c.name}
                   </Truncate>
@@ -316,16 +316,16 @@ function DaftarLanjutan({
                   </Truncate>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{label(c.pemicu)}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Num className="text-muted-foreground">{c.jeda_lanjutan_jam} jam</Num>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{c.status}</td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <button
                     disabled={sibuk}
                     onClick={() => onToggle(c.id, !c.lanjutan_aktif)}
                     className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm border border-border transition-colors disabled:opacity-50"
-                    style={{ color: c.lanjutan_aktif ? "#5cc9a0" : "#6a82a0" }}
+                    style={{ color: c.lanjutan_aktif ? "var(--sukses)" : "var(--muted-foreground)" }}
                     title={
                       c.lanjutan_aktif
                         ? "Hentikan pendaftaran penerima baru. Yang sudah antre tetap dikirimi."
@@ -461,19 +461,19 @@ function FormLanjutan({
         onClick={simpan}
         disabled={sibuk}
         className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-sm text-xs transition-colors disabled:opacity-50"
-        style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+        style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.15)", color: "var(--primary)" }}
       >
         {sibuk ? <Loader2 size={12} className="animate-spin" /> : <MailPlus size={12} />}
         Buat kampanye lanjutan
       </button>
 
       {selesai && !galat && (
-        <p className="text-xs flex items-center gap-1.5" style={{ color: "#5cc9a0" }}>
+        <p className="text-xs flex items-center gap-1.5" style={{ color: "var(--sukses)" }}>
           <CheckCircle size={11} /> Tersimpan. Penerima terdaftar sendiri saat pemicunya terpenuhi.
         </p>
       )}
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -547,12 +547,12 @@ function FormBalasan({ campaignId, onSelesai }: { campaignId: string; onSelesai:
       </button>
 
       {pesan && (
-        <p className="text-xs flex items-center gap-1.5" style={{ color: "#5cc9a0" }}>
+        <p className="text-xs flex items-center gap-1.5" style={{ color: "var(--sukses)" }}>
           <CheckCircle size={11} /> {pesan}
         </p>
       )}
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -649,14 +649,14 @@ function PanelRetensi() {
             <tbody>
               {items.map((k) => (
                 <tr key={k.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <input
                       type="checkbox"
                       checked={terpilih.has(k.id)}
                       onChange={() => toggle(k.id)}
                     />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2.5">
                     <Mono className="text-muted-foreground">{k.email}</Mono>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
@@ -682,7 +682,7 @@ function PanelRetensi() {
               onClick={hapus}
               disabled={sibuk || terpilih.size === 0 || !oleh.trim()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors disabled:opacity-40"
-              style={{ backgroundColor: "rgba(140,46,46,0.15)", color: "#e05252" }}
+              style={{ backgroundColor: "rgb(var(--bahaya-rgb) / 0.15)", color: "var(--bahaya)" }}
               title={
                 oleh.trim()
                   ? "Menghapus permanen kontak yang dipilih"
@@ -699,12 +699,12 @@ function PanelRetensi() {
       {(pesan || galat) && (
         <div className="px-3 py-2 border-t border-border">
           {pesan && (
-            <p className="text-xs" style={{ color: "#5cc9a0" }}>
+            <p className="text-xs" style={{ color: "var(--sukses)" }}>
               {pesan}
             </p>
           )}
           {galat && (
-            <p className="text-xs" style={{ color: "#e05252" }}>
+            <p className="text-xs" style={{ color: "var(--bahaya)" }}>
               {galat}
             </p>
           )}

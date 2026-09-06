@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { Loader2, Mail, ShieldAlert } from "lucide-react";
 import { ApiError, login, type SesiSaya } from "../lib/api";
+import { PengalihTema } from "../components/PengalihTema";
 
 export function LoginScreen({ onMasuk }: { onMasuk: (sesi: SesiSaya) => void }) {
   const [email, setEmail] = useState("");
@@ -37,27 +38,30 @@ export function LoginScreen({ onMasuk }: { onMasuk: (sesi: SesiSaya) => void }) 
   return (
     <div
       className="h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: "#0a1018", fontFamily: "'Inter', ui-sans-serif, system-ui" }}
+      style={{ backgroundColor: "var(--background)", fontFamily: "'Inter', ui-sans-serif, system-ui" }}
     >
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-6">
+          {/* Pengalih ikut hadir di sini karena Header belum tampil sebelum
+              masuk — dan layar masuk adalah layar pertama yang dilihat orang. */}
           <div
             className="w-7 h-7 rounded-sm flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: "#c4824a" }}
+            style={{ backgroundColor: "var(--primary)" }}
           >
-            <Mail size={15} color="#fff" />
+            <Mail size={15} color="var(--primary-foreground)" />
           </div>
           <span
             className="uppercase tracking-widest font-bold"
             style={{
               fontFamily: "'Barlow Condensed', sans-serif",
               letterSpacing: "0.12em",
-              color: "#dce3ec",
+              color: "var(--foreground)",
               fontSize: "15px",
             }}
           >
             Marketing Blast
           </span>
+          <PengalihTema className="ml-auto" />
         </div>
 
         <form
@@ -97,21 +101,21 @@ export function LoginScreen({ onMasuk }: { onMasuk: (sesi: SesiSaya) => void }) 
             type="submit"
             disabled={sibuk || !email.trim() || !sandi}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-sm text-xs transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+            style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.15)", color: "var(--primary)" }}
           >
             {sibuk && <Loader2 size={12} className="animate-spin" />}
             Masuk
           </button>
 
           {galat && (
-            <p className="text-xs flex items-start gap-1.5" style={{ color: "#e05252" }}>
+            <p className="text-xs flex items-start gap-1.5" style={{ color: "var(--bahaya)" }}>
               <ShieldAlert size={12} style={{ flexShrink: 0, marginTop: 1 }} />
               {galat}
             </p>
           )}
         </form>
 
-        <p className="text-xs mt-4 leading-relaxed" style={{ color: "#4d5f78" }}>
+        <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--samar)" }}>
           Lupa kata sandi? Penyedia layanan yang menyetelnya ulang — sistem ini tidak mengirim
           email pemulihan, justru supaya domain pengirimnya tidak dipakai untuk apa pun selain
           kampanye yang Anda susun sendiri.

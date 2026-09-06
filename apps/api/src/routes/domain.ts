@@ -19,7 +19,7 @@ import type { FastifyInstance } from "fastify";
 import { config } from "../config.js";
 import { query } from "../db.js";
 import { kuotaHariIni } from "../domain/quota.js";
-import { AMBANG, TOTAL_STAGES } from "../domain/warmup.js";
+import { AMBANG, TOTAL_STAGES, WARMUP_STAGES } from "../domain/warmup.js";
 
 type Ketersediaan = "tersedia" | "belum_ada_pengiriman" | "belum_terpasang";
 
@@ -64,6 +64,17 @@ export async function domainRoutes(app: FastifyInstance) {
         remaining_today: kuota.sisa,
         /** Jumlah pesan yang pernah keluar. `0` berarti belum pernah mengirim. */
         total_terkirim: totalTerkirim,
+        /**
+         * Jadwal lengkapnya, supaya UI dapat menggambar runway pemanasan
+         * tanpa menyalin angkanya sendiri. Batas harian adalah aturan yang
+         * ditegakkan, bukan hiasan — dua salinan yang berbeda berarti yang
+         * ditampilkan bukan yang berlaku.
+         */
+        jadwal: WARMUP_STAGES.map((s) => ({
+          stage: s.stage,
+          daily_limit: s.dailyLimit,
+          hari_paling_cepat: s.hariPalingCepat,
+        })),
       },
 
       reputation: {

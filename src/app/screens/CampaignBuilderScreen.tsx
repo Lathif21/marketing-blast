@@ -28,6 +28,7 @@ import { SectionTitle } from "../components/SectionTitle";
 import { StepBar } from "../components/StepBar";
 import { Mono, Num, PanelLabel, Truncate } from "../components/Typography";
 import { Th } from "../components/Th";
+import { BarisSubjek } from "../components/BarisSubjek";
 import {
   ApiError,
   createCampaign,
@@ -196,6 +197,10 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
     return teks.replace(/\{\{nama_perusahaan\}\}/g, contoh?.company ?? "{{nama_perusahaan}}");
   };
 
+  /** Baris pertama yang tidak kosong — itulah yang jadi cuplikan di kotak masuk. */
+  const barisPertama = (teks: string) =>
+    teks.split(/\r?\n/).find((b) => b.trim()) ?? "";
+
   const fmt = (n: number) => n.toLocaleString("id-ID");
   const bolehLanjut = jumlahDipilih > 0 && !melebihiKuota;
 
@@ -206,10 +211,10 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
       {galat && (
         <div
           className="rounded-sm p-3 mb-4 flex items-start gap-2 border"
-          style={{ backgroundColor: "rgba(140,46,46,0.14)", borderColor: "rgba(224,82,82,0.28)" }}
+          style={{ backgroundColor: "rgb(var(--bahaya-rgb) / 0.14)", borderColor: "rgb(var(--bahaya-rgb) / 0.28)" }}
         >
-          <XCircle size={14} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
-          <p className="text-xs" style={{ color: "#e05252" }}>
+          <XCircle size={14} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
+          <p className="text-xs" style={{ color: "var(--bahaya)" }}>
             {galat}
           </p>
         </div>
@@ -227,14 +232,14 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
           <div
             className="rounded-sm p-3 flex items-center justify-between gap-3 flex-wrap border"
             style={{
-              backgroundColor: melebihiKuota ? "rgba(140,46,46,0.12)" : "rgba(100,140,180,0.06)",
-              borderColor: melebihiKuota ? "rgba(224,82,82,0.3)" : "rgba(100,140,180,0.16)",
+              backgroundColor: melebihiKuota ? "rgb(var(--bahaya-rgb) / 0.12)" : "rgb(var(--kabut-rgb) / 0.06)",
+              borderColor: melebihiKuota ? "rgb(var(--bahaya-rgb) / 0.3)" : "rgb(var(--kabut-rgb) / 0.16)",
             }}
           >
             <div className="flex items-center gap-2">
               <Shield
                 size={12}
-                style={{ color: melebihiKuota ? "#e05252" : "#c4824a", flexShrink: 0 }}
+                style={{ color: melebihiKuota ? "var(--bahaya)" : "var(--primary)", flexShrink: 0 }}
               />
               <span className="text-xs text-muted-foreground">
                 <span className="text-foreground">
@@ -279,13 +284,13 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
             <div
               className="rounded-sm p-3 flex items-start gap-2 border"
               style={{
-                backgroundColor: "rgba(140,46,46,0.12)",
-                borderColor: "rgba(224,82,82,0.28)",
+                backgroundColor: "rgb(var(--bahaya-rgb) / 0.12)",
+                borderColor: "rgb(var(--bahaya-rgb) / 0.28)",
               }}
             >
-              <AlertTriangle size={13} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
+              <AlertTriangle size={13} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <span style={{ color: "#e05252" }}>
+                <span style={{ color: "var(--bahaya)" }}>
                   Pilihan melebihi kuota harian sebanyak{" "}
                   <Num>{fmt(jumlahDipilih - sisaKuota)}</Num> kontak.
                 </span>{" "}
@@ -308,7 +313,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="bg-card border border-border rounded-sm pl-7 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none w-64"
-                style={{ caretColor: "#c4824a" }}
+                style={{ caretColor: "var(--primary)" }}
               />
             </div>
           </div>
@@ -327,7 +332,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                     <button
                       onClick={() => onNavigate("contacts")}
                       className="px-3 py-1.5 text-xs rounded-sm"
-                      style={{ backgroundColor: "#c4824a", color: "#fff" }}
+                      style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
                     >
                       Buka Daftar Kontak
                     </button>
@@ -358,10 +363,10 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                       onClick={() => toggle(c)}
                       className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors cursor-pointer"
                       style={{
-                        backgroundColor: terpilih.has(c.id) ? "rgba(196,130,74,0.07)" : undefined,
+                        backgroundColor: terpilih.has(c.id) ? "rgb(var(--primary-rgb) / 0.07)" : undefined,
                       }}
                     >
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <input
                           type="checkbox"
                           checked={terpilih.has(c.id)}
@@ -373,7 +378,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                       <td className="px-3 py-2 font-medium text-foreground">
                         <Truncate maxWidth="280px">{c.company}</Truncate>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <Mono className="text-muted-foreground">{c.email}</Mono>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">
@@ -414,8 +419,8 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
               }
               className="px-4 py-2 text-xs rounded-sm flex items-center gap-2 transition-all"
               style={{
-                backgroundColor: bolehLanjut ? "#c4824a" : "rgba(100,140,180,0.1)",
-                color: bolehLanjut ? "#fff" : "#6a82a0",
+                backgroundColor: bolehLanjut ? "var(--primary)" : "rgb(var(--kabut-rgb) / 0.1)",
+                color: bolehLanjut ? "var(--primary-foreground)" : "var(--muted-foreground)",
                 cursor: bolehLanjut ? "pointer" : "not-allowed",
               }}
             >
@@ -442,7 +447,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
                   className="w-full bg-card border border-border rounded-sm px-3 py-2 text-xs text-foreground outline-none"
-                  style={{ caretColor: "#c4824a" }}
+                  style={{ caretColor: "var(--primary)" }}
                 />
               </div>
 
@@ -454,9 +459,9 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                     onClick={() => setBody((b) => `${b} ${v}`)}
                     className="px-1.5 py-0.5 text-xs font-mono rounded-sm transition-colors"
                     style={{
-                      backgroundColor: "rgba(196,130,74,0.13)",
-                      color: "#c4824a",
-                      border: "1px solid rgba(196,130,74,0.28)",
+                      backgroundColor: "rgb(var(--primary-rgb) / 0.13)",
+                      color: "var(--primary)",
+                      border: "1px solid rgb(var(--primary-rgb) / 0.28)",
                     }}
                   >
                     {v}
@@ -464,26 +469,13 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                 ))}
               </div>
 
-              <div>
-                <label className="flex items-center gap-1 text-xs mb-1" style={{ color: "#6a82a0" }}>
-                  <span className="uppercase font-medium" style={{ letterSpacing: "0.06em" }}>
-                    Baris subjek
-                  </span>
-                  <Num style={{ color: subject.length > 60 ? "#e05252" : "#6a82a0" }}>
-                    {subject.length}/60
-                  </Num>
-                </label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full bg-card border rounded-sm px-3 py-2 text-xs text-foreground outline-none"
-                  style={{
-                    borderColor: subject.length > 60 ? "#8c2e2e" : "rgba(100,140,180,0.12)",
-                    caretColor: "#c4824a",
-                  }}
-                />
-              </div>
+              <BarisSubjek
+                nilai={subject}
+                onUbah={setSubject}
+                pratinjau={render(subject)}
+                namaPengirim={pengirim?.name ?? "Pengirim"}
+                cuplikan={barisPertama(render(body))}
+              />
 
               <div>
                 <PanelLabel className="mb-1">Isi pesan</PanelLabel>
@@ -492,7 +484,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                   onChange={(e) => setBody(e.target.value)}
                   rows={12}
                   className="w-full bg-card border border-border rounded-sm px-3 py-2 text-xs text-foreground outline-none resize-none leading-relaxed"
-                  style={{ caretColor: "#c4824a" }}
+                  style={{ caretColor: "var(--primary)" }}
                 />
               </div>
             </div>
@@ -502,7 +494,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
               <div className="bg-secondary/20 border border-border rounded-sm overflow-hidden">
                 <div
                   className="border-b border-border px-4 py-2.5 space-y-1"
-                  style={{ backgroundColor: "rgba(100,140,180,0.05)" }}
+                  style={{ backgroundColor: "rgb(var(--kabut-rgb) / 0.05)" }}
                 >
                   <div className="flex items-start gap-2">
                     <span className="text-xs text-muted-foreground w-14 flex-shrink-0">Dari:</span>
@@ -542,7 +534,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                   <div className="mt-3 pt-3 border-t border-border">
                     <p className="text-xs text-muted-foreground">
                       Tidak ingin menerima email ini?{" "}
-                      <span style={{ color: "#c4824a", textDecoration: "underline" }}>
+                      <span style={{ color: "var(--primary)", textDecoration: "underline" }}>
                         Berhenti berlangganan
                       </span>
                     </p>
@@ -570,7 +562,7 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
               onClick={() => void tinjau()}
               disabled={sibuk}
               className="px-4 py-2 text-xs rounded-sm flex items-center gap-2"
-              style={{ backgroundColor: "#c4824a", color: "#fff" }}
+              style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
             >
               {sibuk ? <Loader2 size={13} className="animate-spin" /> : null}
               Tinjau Kampanye <ArrowRight size={13} />
@@ -590,9 +582,9 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
           {terkirim ? (
             <div
               className="rounded-sm p-4 flex items-start gap-3 border"
-              style={{ backgroundColor: "rgba(43,122,90,0.12)", borderColor: "rgba(92,201,160,0.3)" }}
+              style={{ backgroundColor: "rgb(var(--sukses-rgb) / 0.12)", borderColor: "rgb(var(--sukses-rgb) / 0.3)" }}
             >
-              <CheckCircle size={16} style={{ color: "#5cc9a0", flexShrink: 0, marginTop: 1 }} />
+              <CheckCircle size={16} style={{ color: "var(--sukses)", flexShrink: 0, marginTop: 1 }} />
               <div>
                 <p className="text-xs text-foreground mb-1">
                   <Num>{fmt(terkirim.diantrekan)}</Num> penerima masuk antrean.
@@ -606,17 +598,17 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                 <div
                   className="rounded-sm p-4 flex items-start gap-3 border"
                   style={{
-                    backgroundColor: "rgba(140,46,46,0.14)",
-                    borderColor: "rgba(224,82,82,0.28)",
+                    backgroundColor: "rgb(var(--bahaya-rgb) / 0.14)",
+                    borderColor: "rgb(var(--bahaya-rgb) / 0.28)",
                   }}
                 >
-                  <XCircle size={16} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
+                  <XCircle size={16} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
                   <div>
                     <p
                       className="text-sm font-semibold uppercase tracking-wide mb-1"
                       style={{
                         fontFamily: "'Barlow Condensed', sans-serif",
-                        color: "#e05252",
+                        color: "var(--bahaya)",
                         letterSpacing: "0.08em",
                       }}
                     >
@@ -672,24 +664,24 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                         {b.lolos ? (
                           <CheckCircle
                             size={13}
-                            style={{ color: "#5cc9a0", flexShrink: 0, marginTop: 1 }}
+                            style={{ color: "var(--sukses)", flexShrink: 0, marginTop: 1 }}
                           />
                         ) : b.peringatan ? (
                           <AlertTriangle
                             size={13}
-                            style={{ color: "#d4a040", flexShrink: 0, marginTop: 1 }}
+                            style={{ color: "var(--peringatan)", flexShrink: 0, marginTop: 1 }}
                           />
                         ) : (
                           <XCircle
                             size={13}
-                            style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }}
+                            style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }}
                           />
                         )}
                         <div>
                           <p
                             className="text-xs"
                             style={{
-                              color: b.lolos ? "#dce3ec" : b.peringatan ? "#d4a040" : "#e05252",
+                              color: b.lolos ? "var(--foreground)" : b.peringatan ? "var(--peringatan)" : "var(--bahaya)",
                             }}
                           >
                             {LABEL_BUTIR[b.butir] ?? b.butir}
@@ -718,8 +710,8 @@ export function CampaignBuilderScreen({ onNavigate }: { onNavigate?: (s: "contac
                   disabled={!cek.dapat_dikirim || sibuk}
                   className="px-6 py-2 text-xs rounded-sm flex items-center gap-2 transition-all"
                   style={{
-                    backgroundColor: cek.dapat_dikirim && !sibuk ? "#2b7a5a" : "rgba(140,46,46,0.25)",
-                    color: cek.dapat_dikirim && !sibuk ? "#fff" : "#e05252",
+                    backgroundColor: cek.dapat_dikirim && !sibuk ? "var(--sukses-kuat)" : "rgb(var(--bahaya-rgb) / 0.25)",
+                    color: cek.dapat_dikirim && !sibuk ? "var(--primary-foreground)" : "var(--bahaya)",
                     cursor: cek.dapat_dikirim && !sibuk ? "pointer" : "not-allowed",
                   }}
                 >

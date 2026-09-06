@@ -10,10 +10,10 @@ export function Th({
 }) {
   return (
     <th
-      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+      className={`px-3 py-2.5 text-label font-semibold uppercase tracking-wider whitespace-nowrap ${
         align === "right" ? "text-right" : "text-left"
       }`}
-      style={{ color: "#6a82a0" }}
+      style={{ color: "var(--muted-foreground)" }}
     >
       {children}
     </th>

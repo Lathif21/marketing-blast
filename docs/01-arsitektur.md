@@ -108,6 +108,19 @@ berhenti berlangganan, atau `message_id` notifikasi.
 | `POST` | `/auth/logout` | Keluar, mencabut sesi |
 | `GET` | `/auth/me` | Pengguna, pelanggannya, dan status impersonasi |
 
+### Integrasi Gmail
+
+Alur izin OAuth, bentuknya seperti "masuk dengan GitHub" di Netlify. Rinciannya
+di [11-integrasi-gmail.md](11-integrasi-gmail.md).
+
+| Metode | Jalur | Fungsi |
+|---|---|---|
+| `GET` | `/integrasi/gmail` | Daftar kotak masuk tersambung |
+| `POST` | `/integrasi/gmail/mulai` | Balas URL halaman izin Google |
+| `GET` | `/integrasi/gmail/callback` | Tukar kode menjadi token (butuh sesi) |
+| `POST` | `/integrasi/gmail/:id/sinkron` | Baca sekarang, tanpa menunggu jadwal |
+| `POST` | `/integrasi/gmail/:id/putus` | Cabut akses dari sisi kita |
+
 ### Kendali superadmin
 
 Seluruh jalur `/admin/*` menuntut peran `superadmin`, dan ditolak dengan
@@ -165,6 +178,7 @@ Sandi yang tidak diisi dibuat acak dan ditampilkan sekali.
 | `followup-enroll` | Tiap 10 menit | Daftarkan penerima yang bereaksi ke kampanye lanjutan |
 | `engagement-recalc` | Tiap jam | Nilai ulang `contacts.respons` dari event pengiriman |
 | `retention-sweep` | Bulanan | Laporkan kontak tanpa respons (penghapusan tetap manual) |
+| `gmail-sync` | Tiap 10 menit | Baca kotak masuk tersambung: catat balasan, impor korespondensi |
 | `sesi-sweep` | Tiap jam | Buang sesi kedaluwarsa |
 
 Seluruh pekerjaan yang menyentuh data pelanggan dibungkus `perTenant`, yang

@@ -83,12 +83,12 @@ export function PanelLabel({
   return (
     <div className={className}>
       <div
-        className="text-xs uppercase font-medium"
-        style={{ color: "#6a82a0", letterSpacing: "0.06em" }}
+        className="text-label uppercase font-semibold"
+        style={{ color: "var(--muted-foreground)", letterSpacing: "0.08em" }}
       >
         {children}
       </div>
-      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{sub}</div>}
     </div>
   );
 }

@@ -33,28 +33,28 @@ export function Sidebar({
   const terukur = bounce !== null && keluhan !== null && Boolean(ambang);
   const aman =
     terukur && bounce < ambang!.bounce.perhatian && keluhan < ambang!.keluhan.perhatian;
-  const warnaTitik = !terukur ? "#6a82a0" : aman ? "#5cc9a0" : "#d4a040";
+  const warnaTitik = !terukur ? "var(--muted-foreground)" : aman ? "var(--sukses)" : "var(--peringatan)";
 
   return (
     <div
       className="w-52 flex flex-col border-r border-border flex-shrink-0"
-      style={{ backgroundColor: "#0a1018" }}
+      style={{ backgroundColor: "var(--sidebar)" }}
     >
       {/* Wordmark */}
       <div className="px-4 py-4 border-b border-border flex items-center gap-2">
         <div
           className="w-6 h-6 rounded-sm flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: "#c4824a" }}
+          style={{ backgroundColor: "var(--primary)" }}
         >
-          <Mail size={13} color="#fff" />
+          <Mail size={13} color="var(--primary-foreground)" />
         </div>
         <span
-          className="uppercase tracking-widest font-bold text-xs"
+          className="uppercase tracking-widest font-bold text-sm"
           style={{
             fontFamily: "'Barlow Condensed', sans-serif",
             letterSpacing: "0.12em",
-            color: "#dce3ec",
-            fontSize: "13px",
+            color: "var(--foreground)",
+            fontSize: "15px",
           }}
         >
           Marketing Blast
@@ -69,11 +69,11 @@ export function Sidebar({
             <button
               key={id}
               onClick={() => onNavigate(id)}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-left transition-all"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-all"
               style={{
-                backgroundColor: active ? "rgba(196,130,74,0.11)" : "transparent",
-                color: active ? "#c4824a" : "#6a82a0",
-                borderLeft: `2px solid ${active ? "#c4824a" : "transparent"}`,
+                backgroundColor: active ? "rgb(var(--primary-rgb) / 0.11)" : "transparent",
+                color: active ? "var(--primary)" : "var(--muted-foreground)",
+                borderLeft: `2px solid ${active ? "var(--primary)" : "transparent"}`,
               }}
             >
               <Icon size={13} />
@@ -99,17 +99,17 @@ export function Sidebar({
             {
               label: "Bounce",
               val: bounce === null ? "—" : `${bounce}%`,
-              warna: bounce === null ? "#6a82a0" : bounce < ambang!.bounce.perhatian ? "#5cc9a0" : "#d4a040",
+              warna: bounce === null ? "var(--muted-foreground)" : bounce < ambang!.bounce.perhatian ? "var(--sukses)" : "var(--peringatan)",
             },
             {
               label: "Keluhan",
               val: keluhan === null ? "—" : `${keluhan}%`,
-              warna: keluhan === null ? "#6a82a0" : keluhan < ambang!.keluhan.perhatian ? "#5cc9a0" : "#d4a040",
+              warna: keluhan === null ? "var(--muted-foreground)" : keluhan < ambang!.keluhan.perhatian ? "var(--sukses)" : "var(--peringatan)",
             },
             {
               label: "Pemanasan",
               val: data ? `${data.warmup.stage}/${data.warmup.total_stages}` : "—",
-              warna: "#c4824a",
+              warna: "var(--primary)",
             },
           ].map((m) => (
             <div key={m.label} className="flex justify-between text-xs">
@@ -119,7 +119,7 @@ export function Sidebar({
           ))}
         </div>
         {!terukur && data && (
-          <p className="text-xs mt-2 leading-relaxed" style={{ color: "#4d5f78" }}>
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--samar)" }}>
             Belum ada pengiriman, jadi bounce dan keluhan belum terukur.
           </p>
         )}

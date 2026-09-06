@@ -385,12 +385,14 @@ const MAKS_CUPLIKAN = 280;
  * tercatat pada kampanye yang keliru, bukan pesan terkirim ke orang yang
  * keliru.
  */
-export async function catatBalasan(b: Balasan): Promise<{ recipient_id: string; campaign_id: string } | null> {
+export async function catatBalasan(
+  b: Balasan,
+): Promise<{ recipient_id: string; campaign_id: string; baru: boolean } | null> {
   const cuplikan = b.cuplikan?.trim().slice(0, MAKS_CUPLIKAN) || null;
 
-  const { rows } = await query<{ recipient_id: string; campaign_id: string }>(
+  const { rows } = await query<{ recipient_id: string; campaign_id: string; baru: boolean }>(
     `WITH sasaran AS (
-       SELECT id FROM campaign_recipients
+       SELECT id, replied_at AS sudah FROM campaign_recipients
         -- Header Message-ID berbentuk <id@region.amazonses.com> sementara yang
         -- tersimpan hanyalah id-nya. Bagian sebelum @ dicocokkan juga supaya
         -- balasan yang membawa header lengkap tetap tertaut.
@@ -412,7 +414,12 @@ export async function catatBalasan(b: Balasan): Promise<{ recipient_id: string; 
             reply_snippet = COALESCE(r.reply_snippet, $3)
        FROM sasaran
       WHERE r.id = sasaran.id
-     RETURNING r.id AS recipient_id, r.campaign_id`,
+     -- Kolom baru membedakan "balasan ini baru saja tercatat" dari "balasannya
+     -- memang sudah tercatat sejak dulu". Bedanya penting bagi sinkronisasi
+     -- Gmail: jendela after: di Gmail hanya berketelitian hari, jadi pesan
+     -- yang sama terbaca lagi pada putaran berikutnya — dan penghitung
+     -- "balasan tercatat" akan naik terus tanpa satu pun balasan baru.
+     RETURNING r.id AS recipient_id, r.campaign_id, (sasaran.sudah IS NULL) AS baru`,
     [b.messageId ?? null, b.email ?? null, cuplikan, b.campaignId ?? null],
   );
 

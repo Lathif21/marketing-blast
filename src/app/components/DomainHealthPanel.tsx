@@ -2,19 +2,20 @@ import type React from "react";
 import { AlertCircle, Loader2, Shield } from "lucide-react";
 import { useDomainHealth } from "../lib/domainHealth";
 import { Mono, Num, PanelLabel } from "./Typography";
+import { RunwayPemanasan } from "./RunwayPemanasan";
 
 type Level = "ok" | "warn" | "risk" | "kosong";
 
 const col = (s: Level) =>
-  s === "ok" ? "#5cc9a0" : s === "warn" ? "#d4a040" : s === "risk" ? "#e05252" : "#6a82a0";
+  s === "ok" ? "var(--sukses)" : s === "warn" ? "var(--peringatan)" : s === "risk" ? "var(--bahaya)" : "var(--muted-foreground)";
 const bg = (s: Level) =>
   s === "ok"
-    ? "rgba(43,122,90,0.13)"
+    ? "rgb(var(--sukses-rgb) / 0.13)"
     : s === "warn"
-      ? "rgba(180,120,30,0.13)"
+      ? "rgb(var(--peringatan-rgb) / 0.13)"
       : s === "risk"
-        ? "rgba(140,46,46,0.18)"
-        : "rgba(100,140,180,0.05)";
+        ? "rgb(var(--bahaya-rgb) / 0.18)"
+        : "rgb(var(--kabut-rgb) / 0.05)";
 const lbl = (s: Level) =>
   s === "ok" ? "Baik" : s === "warn" ? "Perhatian" : s === "risk" ? "Kritis" : "Belum terukur";
 
@@ -62,7 +63,7 @@ export function DomainHealthPanel() {
       <div className="bg-card border border-border rounded-sm p-4 mb-5">
         {status === "gagal" ? (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs" style={{ color: "#e05252" }}>
+            <p className="text-xs" style={{ color: "var(--bahaya)" }}>
               Kesehatan domain tidak dapat dimuat: {error}
             </p>
             <button
@@ -87,9 +88,9 @@ export function DomainHealthPanel() {
   const keluhanLevel = tingkat(reputation.complaint_rate_7d, reputation.thresholds.keluhan);
 
   const belumKirim = sumber.pengiriman !== "tersedia";
-  const limit = warmup.daily_limit;
-  const sisa = warmup.remaining_today;
-  const sentPct = limit && limit > 0 ? (warmup.sent_today / limit) * 100 : 0;
+  // Sisa dan persentase harian kini dihitung di dalam runway, bersama jadwal
+  // tahapnya — satu tempat, supaya angka "tersisa hari ini" tidak muncul dua
+  // kali dengan pembulatan yang berbeda.
 
   const waktu = new Date(data.diperbarui_pada).toLocaleTimeString("id-ID", {
     hour: "2-digit",
@@ -100,12 +101,12 @@ export function DomainHealthPanel() {
     <div className="bg-card border border-border rounded-sm p-4 mb-5">
       <div className="flex items-center justify-between mb-4 gap-3">
         <div className="flex items-center gap-2">
-          <Shield size={13} style={{ color: "#c4824a" }} />
+          <Shield size={13} style={{ color: "var(--primary)" }} />
           <span
             className="text-xs uppercase tracking-widest font-semibold"
             style={{
               fontFamily: "'Barlow Condensed', sans-serif",
-              color: "#dce3ec",
+              color: "var(--foreground)",
               letterSpacing: "0.12em",
             }}
           >
@@ -126,11 +127,11 @@ export function DomainHealthPanel() {
         <div
           className="rounded-sm p-3 mb-3 flex items-start gap-2 border"
           style={{
-            backgroundColor: "rgba(100,140,180,0.06)",
-            borderColor: "rgba(100,140,180,0.16)",
+            backgroundColor: "rgb(var(--kabut-rgb) / 0.06)",
+            borderColor: "rgb(var(--kabut-rgb) / 0.16)",
           }}
         >
-          <AlertCircle size={13} style={{ color: "#8da0b8", flexShrink: 0, marginTop: 1 }} />
+          <AlertCircle size={13} style={{ color: "var(--secondary-foreground)", flexShrink: 0, marginTop: 1 }} />
           <p className="text-xs text-muted-foreground leading-relaxed">
             Belum ada kampanye terkirim dari domain ini, jadi{" "}
             <span className="text-foreground">bounce dan keluhan belum dapat diukur</span>. Angkanya
@@ -140,7 +141,7 @@ export function DomainHealthPanel() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Kartu
           label="Tingkat bounce"
           level={bounceLevel}
@@ -199,91 +200,20 @@ export function DomainHealthPanel() {
           )}
         </Kartu>
 
-        {/* Tahap pemanasan — nyata: setiap domain baru mulai dari tahap 1. */}
-        <div
-          className="rounded-sm p-3"
-          style={{
-            backgroundColor: "rgba(196,130,74,0.1)",
-            border: "1px solid rgba(196,130,74,0.2)",
-          }}
-        >
-          <PanelLabel className="mb-1">Tahap pemanasan</PanelLabel>
-          <div className="flex items-baseline gap-1">
-            <Num className="text-2xl font-semibold" style={{ color: "#c4824a" }}>
-              {warmup.stage}
-            </Num>
-            <Num className="text-sm text-muted-foreground">/ {warmup.total_stages}</Num>
-          </div>
-          <div className="flex gap-1 mt-2">
-            {Array.from({ length: warmup.total_stages }).map((_, i) => (
-              <div
-                key={i}
-                className="flex-1 h-1.5 rounded-sm"
-                style={{
-                  backgroundColor: i < warmup.stage ? "#c4824a" : "rgba(196,130,74,0.18)",
-                }}
-              />
-            ))}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1.5">
-            {limit === null ? (
-              "Tanpa batas tetap"
-            ) : (
-              <>
-                batas <Num>{limit.toLocaleString("id-ID")}</Num>/hari
-              </>
-            )}
-          </div>
-        </div>
+      </div>
 
-        {/* Kirim hari ini — nyata: nol karena memang belum ada yang dikirim. */}
-        <div
-          className="rounded-sm p-3"
-          style={{
-            backgroundColor: "rgba(100,140,180,0.07)",
-            border: "1px solid rgba(100,140,180,0.12)",
-          }}
-        >
-          <PanelLabel className="mb-1">Kirim hari ini</PanelLabel>
-          <div className="flex items-baseline gap-1">
-            <Num className="text-2xl font-semibold text-foreground">{warmup.sent_today}</Num>
-            {limit !== null && (
-              <Num className="text-sm text-muted-foreground">/ {limit}</Num>
-            )}
-          </div>
-          <div className="mt-2">
-            <div
-              className="h-1.5 rounded-sm overflow-hidden"
-              style={{ backgroundColor: "rgba(100,140,180,0.15)" }}
-            >
-              <div
-                className="h-full rounded-sm"
-                style={{
-                  width: `${Math.min(sentPct, 100)}%`,
-                  backgroundColor: sentPct > 80 ? "#d4a040" : "#8da0b8",
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-              {/*
-                Angka yang dapat dipakai langsung, bukan sekadar persentase —
-                "50 dari 50 tersisa" menjawab pertanyaan yang sebenarnya
-                diajukan pengguna (03-layar-dan-alur.md §1).
-              */}
-              <span>
-                {sisa === null ? (
-                  "tanpa batas"
-                ) : (
-                  <>
-                    <Num>{sisa.toLocaleString("id-ID")}</Num> dari{" "}
-                    <Num>{limit?.toLocaleString("id-ID")}</Num> tersisa
-                  </>
-                )}
-              </span>
-              <Num>{sentPct.toFixed(0)}%</Num>
-            </div>
-          </div>
-        </div>
+      {/* Runway menggantikan dua kartu sempit yang dulu terpisah — "tahap
+          pemanasan" dan "kirim hari ini". Keduanya menjawab pertanyaan yang
+          sama dari sisi berbeda, dan dipisah keduanya jadi angka tanpa
+          konteks. */}
+      <div className="mt-3">
+        <RunwayPemanasan
+          jadwal={warmup.jadwal ?? []}
+          tahapSekarang={warmup.stage}
+          terpakaiHariIni={warmup.sent_today}
+          sisaHariIni={warmup.remaining_today}
+          batasHariIni={warmup.daily_limit}
+        />
       </div>
 
       {/* Satu angka reputasi yang sudah nyata sejak hari pertama. */}

@@ -2,14 +2,14 @@
 // Warna dan teks tetap dipakai bersamaan; warna saja tidak cukup.
 
 const MAP: Record<string, { label: string; color: string; bg: string }> = {
-  aktif:     { label: "Aktif",     color: "#5cc9a0", bg: "rgba(43,122,90,0.2)"    },
-  karantina: { label: "Karantina", color: "#d4a040", bg: "rgba(180,120,30,0.15)"  },
-  diblokir:  { label: "Diblokir",  color: "#e05252", bg: "rgba(140,46,46,0.2)"    },
-  selesai:   { label: "Selesai",   color: "#8da0b8", bg: "rgba(106,130,160,0.15)" },
-  draft:     { label: "Draft",     color: "#6a82a0", bg: "rgba(100,130,160,0.1)"  },
+  aktif:     { label: "Aktif",     color: "var(--sukses)", bg: "rgb(var(--sukses-rgb) / 0.2)"    },
+  karantina: { label: "Karantina", color: "var(--peringatan)", bg: "rgb(var(--peringatan-rgb) / 0.15)"  },
+  diblokir:  { label: "Diblokir",  color: "var(--bahaya)", bg: "rgb(var(--bahaya-rgb) / 0.2)"    },
+  selesai:   { label: "Selesai",   color: "var(--secondary-foreground)", bg: "rgb(var(--kabut-rgb) / 0.15)" },
+  draft:     { label: "Draft",     color: "var(--muted-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)"  },
 };
 
-const FALLBACK = { color: "#6a82a0", bg: "rgba(100,130,160,0.1)" };
+const FALLBACK = { color: "var(--muted-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)" };
 
 export function StatusBadge({ status }: { status: string }) {
   const c = MAP[status] ?? { label: status, ...FALLBACK };

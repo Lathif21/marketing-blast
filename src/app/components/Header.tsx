@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { PengalihTema } from "./PengalihTema";
 import type { SesiSaya } from "../lib/api";
 import type { Screen } from "../lib/types";
 import { Mono, Num } from "./Typography";
@@ -37,15 +38,15 @@ export function Header({
   const pelanggan = sesi?.tenant?.nama ?? null;
   return (
     <div
-      className="h-11 border-b border-border flex items-center justify-between px-6 flex-shrink-0"
-      style={{ backgroundColor: "#0a1018" }}
+      className="h-12 border-b border-border flex items-center justify-between px-6 flex-shrink-0"
+      style={{ backgroundColor: "var(--sidebar)" }}
     >
       <span
-        className="text-xs uppercase tracking-widest font-semibold"
+        className="text-base uppercase tracking-widest font-semibold"
         style={{
           fontFamily: "'Barlow Condensed', sans-serif",
           letterSpacing: "0.14em",
-          color: "#dce3ec",
+          color: "var(--foreground)",
         }}
       >
         {TITLES[screen]}
@@ -59,19 +60,20 @@ export function Header({
           })}
         </Num>
         {pelanggan && (
-          <Mono className="text-xs" style={{ color: "#6a82a0" }} title="Pelanggan yang sedang dibuka">
+          <Mono className="text-xs" style={{ color: "var(--muted-foreground)" }} title="Pelanggan yang sedang dibuka">
             {pelanggan}
           </Mono>
         )}
         <div className="flex items-center gap-2">
           <div
             className="w-6 h-6 rounded-sm flex items-center justify-center text-xs font-semibold flex-shrink-0"
-            style={{ backgroundColor: "rgba(196,130,74,0.18)", color: "#c4824a" }}
+            style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.18)", color: "var(--primary)" }}
             title={sesi?.peran}
           >
             {initials(sesi?.nama ?? "?")}
           </div>
           <span className="text-xs text-muted-foreground">{sesi?.nama ?? "—"}</span>
+          <PengalihTema className="ml-1" />
           {onKeluar && (
             <button
               onClick={onKeluar}

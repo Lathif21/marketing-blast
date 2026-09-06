@@ -14,21 +14,21 @@ export function StepBar({ steps, current }: { steps: string[]; current: number }
               <div
                 className="w-5 h-5 rounded-sm flex items-center justify-center text-xs font-medium flex-shrink-0"
                 style={{
-                  backgroundColor: done ? "#2b7a5a" : active ? "#c4824a" : "transparent",
-                  color: done || active ? "#fff" : "#6a82a0",
-                  border: done || active ? "none" : "1px solid rgba(100,140,180,0.2)",
+                  backgroundColor: done ? "var(--sukses-kuat)" : active ? "var(--primary)" : "transparent",
+                  color: done || active ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                  border: done || active ? "none" : "1px solid rgb(var(--kabut-rgb) / 0.2)",
                 }}
               >
                 {done ? <Check size={10} /> : <Num>{n}</Num>}
               </div>
-              <span className="text-xs" style={{ color: active ? "#dce3ec" : "#6a82a0" }}>
+              <span className="text-xs" style={{ color: active ? "var(--foreground)" : "var(--muted-foreground)" }}>
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
               <div
                 className="w-10 h-px mx-3"
-                style={{ backgroundColor: done ? "#2b7a5a" : "rgba(100,140,180,0.18)" }}
+                style={{ backgroundColor: done ? "var(--sukses-kuat)" : "rgb(var(--kabut-rgb) / 0.18)" }}
               />
             )}
           </div>

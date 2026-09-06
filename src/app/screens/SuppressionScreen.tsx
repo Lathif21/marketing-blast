@@ -12,10 +12,10 @@ import {
 } from "../lib/types";
 
 const REASON_STYLE: Record<SuppressionReason, { color: string; bg: string }> = {
-  keluhan:     { color: "#e05252", bg: "rgba(140,46,46,0.2)"   },
-  hard_bounce: { color: "#d4a040", bg: "rgba(180,120,30,0.15)" },
-  manual:      { color: "#8da0b8", bg: "rgba(100,130,160,0.1)" },
-  unsubscribe: { color: "#8da0b8", bg: "rgba(100,130,160,0.1)" },
+  keluhan:     { color: "var(--bahaya)", bg: "rgb(var(--bahaya-rgb) / 0.2)"   },
+  hard_bounce: { color: "var(--peringatan)", bg: "rgb(var(--peringatan-rgb) / 0.15)" },
+  manual:      { color: "var(--secondary-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)" },
+  unsubscribe: { color: "var(--secondary-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)" },
 };
 
 export function SuppressionScreen() {
@@ -28,7 +28,7 @@ export function SuppressionScreen() {
       <div className="flex items-start justify-between mb-4">
         <div>
           <SectionTitle label="Daftar Suppres" />
-          <p className="text-xs text-muted-foreground -mt-3">
+          <p className="text-sm text-muted-foreground max-w-3xl">
             {data ? (
               <>
                 <Num>{total.toLocaleString("id-ID")}</Num> entri ·{" "}
@@ -41,9 +41,9 @@ export function SuppressionScreen() {
           <div
             className="px-3 py-1.5 rounded-sm text-xs flex items-center gap-1.5"
             style={{
-              backgroundColor: "rgba(140,46,46,0.15)",
-              color: "#e05252",
-              border: "1px solid rgba(224,82,82,0.2)",
+              backgroundColor: "rgb(var(--bahaya-rgb) / 0.15)",
+              color: "var(--bahaya)",
+              border: "1px solid rgb(var(--bahaya-rgb) / 0.2)",
             }}
           >
             <Lock size={11} /> Daftar Permanen
@@ -55,7 +55,7 @@ export function SuppressionScreen() {
       </div>
 
       <div className="bg-card border border-border rounded-sm p-3 mb-4 flex items-start gap-2">
-        <Shield size={13} style={{ color: "#c4824a", flexShrink: 0, marginTop: 1 }} />
+        <Shield size={13} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 1 }} />
         <p className="text-xs text-muted-foreground leading-relaxed">
           Email dalam daftar ini{" "}
           <strong className="text-foreground">
@@ -92,13 +92,13 @@ export function SuppressionScreen() {
                 const style = REASON_STYLE[item.reason];
                 return (
                   <tr key={item.email} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       <Mono className="text-muted-foreground">{item.email}</Mono>
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {SUPPRESSION_TEXT[item.reason]}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       <span
                         className="inline-flex items-center px-1.5 py-0.5 text-xs rounded-sm"
                         style={{ backgroundColor: style.bg, color: style.color }}
@@ -106,10 +106,10 @@ export function SuppressionScreen() {
                         {SUPPRESSION_LABELS[item.reason]}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       <Num className="text-muted-foreground">{item.date}</Num>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       {/* Tidak ada aksi hapus di sini, dan tidak boleh ditambahkan. */}
                       <Lock size={11} className="text-muted-foreground opacity-50" />
                     </td>
@@ -122,7 +122,7 @@ export function SuppressionScreen() {
       </div>
 
       {status === "gagal" && items.length > 0 && (
-        <p className="mt-2 text-xs" style={{ color: "#d4a040" }}>
+        <p className="mt-2 text-xs" style={{ color: "var(--peringatan)" }}>
           Gagal menyegarkan: {error}. Yang tampil di atas adalah data terakhir yang berhasil dimuat.
         </p>
       )}

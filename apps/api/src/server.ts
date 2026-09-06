@@ -13,6 +13,7 @@ import { mailDriver } from "./mail/index.js";
 import { authPlugin } from "./auth/plugin.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
+import { gmailRoutes } from "./routes/gmail.js";
 import { campaignRoutes } from "./routes/campaigns.js";
 import { contactRoutes } from "./routes/contacts.js";
 import { domainRoutes } from "./routes/domain.js";
@@ -120,6 +121,7 @@ app.get("/health", async (_req, reply) => {
 await authPlugin(app);
 await app.register(authRoutes);
 await app.register(adminRoutes);
+await app.register(gmailRoutes);
 
 await app.register(unsubscribeRoutes);
 await app.register(sesWebhookRoutes);

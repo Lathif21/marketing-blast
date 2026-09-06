@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { query } from "../db.js";
-import { CONSENT_SOURCES, type ConsentSource } from "../import/repo.js";
+import { SEMUA_CONSENT_SOURCE, type ConsentSource } from "../import/repo.js";
 import { MAKS_SEKALI, aktifkanKontak, karantinakanKontak } from "../contacts/activate.js";
 import {
   MAKS_HAPUS_SEKALI,
@@ -39,7 +39,7 @@ export async function contactRoutes(app: FastifyInstance) {
     if (respons && !SEMUA_RESPONS.includes(respons as (typeof SEMUA_RESPONS)[number])) {
       return reply.code(400).send({ error: `respons tidak dikenal: ${respons}` });
     }
-    if (consent_source && !CONSENT_SOURCES.includes(consent_source as ConsentSource)) {
+    if (consent_source && !SEMUA_CONSENT_SOURCE.includes(consent_source as ConsentSource)) {
       return reply.code(400).send({ error: `sumber izin tidak dikenal: ${consent_source}` });
     }
 

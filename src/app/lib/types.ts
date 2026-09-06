@@ -34,6 +34,8 @@ export type ConsentSource =
   | "pameran"
   | "referral"
   | "alamat_generik_terpublikasi"
+  /** Hanya dihasilkan integrasi Gmail — tidak dapat dipilih saat impor berkas. */
+  | "korespondensi_dua_arah"
   | "lainnya";
 
 export const CONSENT_LABELS: Record<ConsentSource, string> = {
@@ -43,10 +45,18 @@ export const CONSENT_LABELS: Record<ConsentSource, string> = {
   pameran: "Pameran dagang",
   referral: "Referral mitra",
   alamat_generik_terpublikasi: "Alamat generik terpublikasi",
+  korespondensi_dua_arah: "Korespondensi dua arah",
   lainnya: "Lainnya",
 };
 
-export const CONSENT_SOURCES = Object.keys(CONSENT_LABELS) as ConsentSource[];
+/**
+ * Yang dapat DIPILIH saat impor berkas. `korespondensi_dua_arah` dikeluarkan:
+ * ia menyatakan bukti yang hanya dapat ditegakkan integrasi Gmail, dan
+ * membiarkannya dipilih pada impor CSV mengubah bukti menjadi klaim.
+ */
+export const CONSENT_SOURCES = (Object.keys(CONSENT_LABELS) as ConsentSource[]).filter(
+  (s) => s !== "korespondensi_dua_arah",
+);
 
 export type ConsentStrength = "kuat" | "cukup" | "perlu_ditinjau";
 

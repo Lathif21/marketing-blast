@@ -9,6 +9,31 @@
       <meta name="description" content="Enables Indonesian B2B sales teams to safely run outbound email campaigns with real-time domain health monitoring and compliance controls." />
       <meta name="robots" content="noindex, nofollow" />
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+
+      <!--
+        Menerapkan mode terang/gelap SEBELUM halaman digambar.
+
+        Kalau ini diserahkan ke React, halaman sempat tergambar dengan mode
+        bawaan lalu berkedip ke mode yang benar pada pemuatan berikutnya —
+        paling terasa bagi pengguna mode gelap, yang mendapat kilatan putih
+        setiap kali membuka aplikasi.
+
+        Kunci dan nama kelasnya harus sama dengan src/app/lib/tema.ts.
+      -->
+      <script>
+        (function () {
+          try {
+            var pilihan = localStorage.getItem('mb-tema') || 'sistem';
+            var gelap =
+              pilihan === 'gelap' ||
+              (pilihan === 'sistem' &&
+                window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (gelap) document.documentElement.classList.add('dark');
+          } catch (e) {
+            /* Penyimpanan diblokir. Mode bawaan tetap berlaku. */
+          }
+        })();
+      </script>
       
     </head>
 

@@ -79,6 +79,35 @@ export const config = {
   unsubscribeSecret: optional("UNSUBSCRIBE_SECRET", ""),
 
   /**
+   * Kunci enkripsi token penyegar Gmail (lib/rahasia.ts).
+   *
+   * Terpisah dari `unsubscribeSecret` dengan sengaja: keduanya melindungi hal
+   * yang berbeda beratnya. Token berhenti berlangganan yang bocor menghentikan
+   * langganan orang; token penyegar Gmail yang bocor membuka kotak masuk
+   * seseorang. Memakai satu kunci untuk keduanya berarti memutar salah satunya
+   * memaksa memutar keduanya — dan yang lebih berat akan ikut tertunda karena
+   * yang lebih ringan merepotkan.
+   */
+  tokenSecret: optional("TOKEN_SECRET", ""),
+
+  /**
+   * Kredensial OAuth Google. Kosong berarti integrasi Gmail tidak aktif, dan
+   * rutenya membalas 503 — bukan gagal saat pengguna sudah setengah jalan di
+   * layar izin Google.
+   */
+  google: {
+    clientId: optional("GOOGLE_CLIENT_ID", ""),
+    clientSecret: optional("GOOGLE_CLIENT_SECRET", ""),
+    /**
+     * Harus sama PERSIS dengan yang terdaftar di Google Cloud Console —
+     * termasuk skema, port, dan garis miring akhir. Ketidakcocokan sekecil apa
+     * pun dijawab Google dengan `redirect_uri_mismatch`, dan pesan itu tidak
+     * menyebutkan bagian mana yang berbeda.
+     */
+    redirectUri: optional("GOOGLE_REDIRECT_URI", ""),
+  },
+
+  /**
    * Parameter dekripsi berkas .enc dari Contact Harvester. Nilainya harus sama
    * persis dengan yang dipakai `crypto_utils.py` di alat itu — kalau impor
    * gagal terus dengan pesan "kata sandi salah" padahal sandinya benar,
@@ -146,6 +175,31 @@ export function validateConfig(): void {
 
   if (config.unsubscribeSecret.length < 32) {
     throw new Error("UNSUBSCRIBE_SECRET terlalu pendek — minimal 32 karakter.");
+  }
+
+  // Hanya diperiksa bila integrasi Gmail memang dinyalakan. Instalasi yang
+  // tidak memakainya tidak perlu menyetel kunci yang tidak akan dipakai.
+  if (config.google.clientId || config.google.clientSecret) {
+    const kurang = [
+      ["GOOGLE_CLIENT_ID", config.google.clientId],
+      ["GOOGLE_CLIENT_SECRET", config.google.clientSecret],
+      ["GOOGLE_REDIRECT_URI", config.google.redirectUri],
+      ["TOKEN_SECRET", config.tokenSecret],
+    ]
+      .filter(([, nilai]) => !nilai)
+      .map(([nama]) => nama);
+
+    if (kurang.length > 0) {
+      throw new Error(
+        `Integrasi Gmail setengah terkonfigurasi — ${kurang.join(", ")} kosong. ` +
+          "Lengkapi semuanya atau kosongkan GOOGLE_CLIENT_ID supaya integrasinya " +
+          "mati sepenuhnya. Lihat docs/11-integrasi-gmail.md.",
+      );
+    }
+
+    if (config.tokenSecret.length < 32) {
+      throw new Error("TOKEN_SECRET terlalu pendek — minimal 32 karakter. Buat dengan: openssl rand -hex 32");
+    }
   }
 
   if (!Number.isFinite(config.enc.pbkdf2Iterations) || config.enc.pbkdf2Iterations < 1000) {

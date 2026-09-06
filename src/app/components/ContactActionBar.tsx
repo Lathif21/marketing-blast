@@ -46,7 +46,7 @@ export function ContactActionBar({
   return (
     <div
       className="bg-card border rounded-sm p-3 mb-3"
-      style={{ borderColor: "rgba(196,130,74,0.35)" }}
+      style={{ borderColor: "rgb(var(--primary-rgb) / 0.35)" }}
     >
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -59,7 +59,7 @@ export function ContactActionBar({
             {pilihan.karantinaTebakan > 0 && (
               <>
                 {" · "}
-                <span style={{ color: "#d4a040" }}>
+                <span style={{ color: "var(--peringatan)" }}>
                   <Num>{pilihan.karantinaTebakan.toLocaleString("id-ID")}</Num> alamat tebakan
                 </span>
               </>
@@ -80,7 +80,7 @@ export function ContactActionBar({
             value={dinyatakanOleh}
             onChange={(e) => onDinyatakanOleh(e.target.value)}
             className="bg-secondary border border-border rounded-sm px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none w-56"
-            style={{ caretColor: "#c4824a" }}
+            style={{ caretColor: "var(--primary)" }}
           />
 
           {pilihan.aktif > 0 && (
@@ -106,8 +106,8 @@ export function ContactActionBar({
             }
             className="px-3 py-1.5 text-xs rounded-sm flex items-center gap-1.5 transition-all"
             style={{
-              backgroundColor: bolehAktifkan ? "#2b7a5a" : "rgba(100,140,180,0.1)",
-              color: bolehAktifkan ? "#fff" : "#6a82a0",
+              backgroundColor: bolehAktifkan ? "var(--sukses-kuat)" : "rgb(var(--kabut-rgb) / 0.1)",
+              color: bolehAktifkan ? "var(--primary-foreground)" : "var(--muted-foreground)",
               cursor: bolehAktifkan ? "pointer" : "not-allowed",
             }}
           >
@@ -132,7 +132,7 @@ export function ContactActionBar({
       {pilihan.karantinaTebakan > 0 && (
         <label
           className="flex items-start gap-2 mt-3 pt-3 border-t border-border cursor-pointer"
-          style={{ borderColor: "rgba(212,160,64,0.2)" }}
+          style={{ borderColor: "rgb(var(--peringatan-rgb) / 0.2)" }}
         >
           <input
             type="checkbox"
@@ -141,7 +141,7 @@ export function ContactActionBar({
             className="mt-0.5"
           />
           <span className="text-xs text-muted-foreground leading-relaxed">
-            <span className="inline-flex items-center gap-1" style={{ color: "#d4a040" }}>
+            <span className="inline-flex items-center gap-1" style={{ color: "var(--peringatan)" }}>
               <AlertTriangle size={11} />
               Ikut aktifkan <Num>{pilihan.karantinaTebakan.toLocaleString("id-ID")}</Num> alamat
               hasil tebakan

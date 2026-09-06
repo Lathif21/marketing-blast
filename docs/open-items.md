@@ -127,17 +127,21 @@ yang terkirim. Jangan tampilkan 0% dalam keadaan itu — 0% terbaca sebagai
 "sangat sehat", padahal artinya "belum ada yang bisa diukur". Ini kekeliruan
 yang sama yang sudah dihindari di `/domain/health`.
 
-### C3. Revisi desain belum dikerjakan
+### C3. Revisi desain — tinggal satu
 
 Dari `05-revisi-desain.md`, yang belum:
 
 | Revisi | Usaha | Dampak |
 |---|---|---|
-| Runway pemanasan domain | Sedang | Tinggi |
-| Baris subjek sebagai elemen utama | Sedang | Tinggi |
-| Momen kirim | Sedang | Sedang |
+| Momen kirim (satu animasi saat kampanye diluncurkan) | Sedang | Sedang |
 
-Revisi disiplin monospace dan perbaikan data tiruan LinkedIn sudah selesai.
+Runway pemanasan, baris subjek, warna keterlibatan, skala tipe, dan mode
+terang sudah dikerjakan.
+
+Catatan saat mengerjakannya: hormati `prefers-reduced-motion` — tanpa
+animasi, angkanya tetap diperbarui, hanya tanpa transisi. Dan biarkan
+selebihnya diam; gerakan di banyak tempat justru membuatnya terasa seperti
+template.
 
 ---
 
@@ -230,6 +234,36 @@ kedua benar-benar mengirim: `sender_domain` perlu menjadi milik pelanggan
 
 Ini konsekuensi paling penting dari keputusan multi-tenant, dan satu-satunya
 bagiannya yang belum lengkap.
+
+### D7. Integrasi Gmail masih berstatus "Testing" di Google
+
+Fiturnya lengkap dan teruji, tapi **token penyegar kedaluwarsa tiap 7 hari**
+selama aplikasi berstatus Testing di Google Cloud. Artinya setiap kotak masuk
+harus disambungkan ulang tiap minggu.
+
+Dapat diterima untuk membuktikan fiturnya. TIDAK dapat diterima untuk pelanggan
+berbayar.
+
+Dua jalan keluar, dan yang kedua lebih cocok dengan model penjualan:
+
+1. Verifikasi penuh + asesmen CASA tahunan — berbiaya, berminggu-minggu
+2. **Domain-wide delegation** untuk pelanggan Google Workspace — tanpa CASA,
+   tanpa consent per pengguna, tanpa kedaluwarsa. Hanya untuk Workspace, bukan
+   Gmail pribadi.
+
+Rinciannya di [11-integrasi-gmail.md](11-integrasi-gmail.md).
+
+### D8. Kotak masuk pribadi vs bersama belum dibedakan
+
+Sistem tidak tahu apakah yang disambungkan kotak masuk penjualan bersama atau
+kotak masuk pribadi seseorang. Yang tersimpan hanya alamat, bukan isi pesan —
+tapi korespondensi pribadi tetap ikut DINILAI, dan itu pantas disebut eksplisit
+sebelum fitur ini dipakai pelanggan.
+
+Kemungkinan yang cukup: peringatan sekali saat menyambungkan, dan menyarankan
+memakai kotak masuk bersama.
+
+---
 
 ## E. Butuh keputusan, bukan kode
 

@@ -53,9 +53,9 @@ const pesanGalat = (err: unknown) =>
   err instanceof ApiError ? err.message : ((err as Error)?.message ?? "Galat tidak dikenal");
 
 const WARNA_STATUS: Record<string, { color: string; bg: string }> = {
-  aktif: { color: "#5cc9a0", bg: "rgba(60,160,120,0.14)" },
-  dibekukan: { color: "#d4a040", bg: "rgba(180,120,30,0.15)" },
-  nonaktif: { color: "#8da0b8", bg: "rgba(100,130,160,0.1)" },
+  aktif: { color: "var(--sukses)", bg: "rgb(var(--sukses-rgb) / 0.14)" },
+  dibekukan: { color: "var(--peringatan)", bg: "rgb(var(--peringatan-rgb) / 0.15)" },
+  nonaktif: { color: "var(--secondary-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)" },
 };
 
 /** `null` menjadi "—". Lihat catatan di atas berkas. */
@@ -68,7 +68,7 @@ function Persen({ nilai, ambang }: { nilai: number | null; ambang: number }) {
     );
   }
   return (
-    <Num style={{ color: nilai >= ambang ? "#e05252" : "#8da0b8" }}>{nilai}%</Num>
+    <Num style={{ color: nilai >= ambang ? "var(--bahaya)" : "var(--secondary-foreground)" }}>{nilai}%</Num>
   );
 }
 
@@ -113,7 +113,7 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
       <div className="flex items-start justify-between gap-4">
         <div>
           <SectionTitle label="Kendali Pelanggan" />
-          <p className="text-xs text-muted-foreground -mt-3 max-w-3xl leading-relaxed">
+          <p className="text-sm text-muted-foreground max-w-3xl">
             Angka tujuh hari terakhir per pelanggan. Pembekuan menghentikan pengiriman seketika dan
             mencabut sesi yang sedang berjalan — data pelanggan tetap utuh dan tetap dapat mereka
             lihat, beserta alasannya.
@@ -122,7 +122,7 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
         <button
           onClick={() => setFormBaru((v) => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors flex-shrink-0"
-          style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+          style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.15)", color: "var(--primary)" }}
         >
           <Plus size={12} /> Pelanggan baru
         </button>
@@ -172,15 +172,15 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
                       key={t.id}
                       onClick={() => setTerpilih(aktif ? null : t.id)}
                       className="border-b border-border last:border-0 cursor-pointer"
-                      style={{ backgroundColor: aktif ? "rgba(196,130,74,0.07)" : undefined }}
+                      style={{ backgroundColor: aktif ? "rgb(var(--primary-rgb) / 0.07)" : undefined }}
                     >
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <Truncate maxWidth="200px" className="text-foreground">
                           {t.nama}
                         </Truncate>
                         <Mono className="text-muted-foreground">{t.slug}</Mono>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <span
                           className="inline-flex items-center px-1.5 py-0.5 rounded-sm"
                           style={{ backgroundColor: gaya.bg, color: gaya.color }}
@@ -188,14 +188,14 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
                           {t.status}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <Mono className="text-muted-foreground">{t.domain ?? "—"}</Mono>
                       </td>
                       <td className="px-3 py-2 text-right">
                         <Num className="text-muted-foreground">
                           {t.kontak.toLocaleString("id-ID")}
                           {t.kuota_kontak !== null && (
-                            <span style={{ color: "#4d5f78" }}>/{t.kuota_kontak}</span>
+                            <span style={{ color: "var(--samar)" }}>/{t.kuota_kontak}</span>
                           )}
                         </Num>
                       </td>
@@ -211,7 +211,7 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
                       <td className="px-3 py-2 text-right">
                         <Persen nilai={t.complaint_rate_7h} ambang={0.1} />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -234,7 +234,7 @@ export function SuperadminScreen({ onImpersonasi }: { onImpersonasi: () => void 
       </div>
 
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -332,14 +332,14 @@ function FormPelangganBaru({ onSelesai }: { onSelesai: () => void }) {
         onClick={simpan}
         disabled={sibuk || !nama.trim() || !slug.trim() || !email.trim() || !sandi}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors disabled:opacity-50"
-        style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+        style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.15)", color: "var(--primary)" }}
       >
         {sibuk ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
         Buat pelanggan
       </button>
 
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -374,7 +374,7 @@ function PanelPelanggan({
 
         {tenant.status === "dibekukan" && (
           <div className="flex items-start gap-2">
-            <AlertTriangle size={13} style={{ color: "#d4a040", flexShrink: 0, marginTop: 1 }} />
+            <AlertTriangle size={13} style={{ color: "var(--peringatan)", flexShrink: 0, marginTop: 1 }} />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Dibekukan {tenant.dibekukan_pada?.slice(0, 10)} oleh{" "}
               <Mono>{tenant.dibekukan_oleh}</Mono>: {tenant.alasan_beku}
@@ -409,7 +409,7 @@ function PanelPelanggan({
                 onClick={() => onBekukan(alasan.trim())}
                 disabled={sibuk || !alasan.trim()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors disabled:opacity-40"
-                style={{ backgroundColor: "rgba(180,120,30,0.15)", color: "#d4a040" }}
+                style={{ backgroundColor: "rgb(var(--peringatan-rgb) / 0.15)", color: "var(--peringatan)" }}
               >
                 <Pause size={11} /> Bekukan pengiriman
               </button>
@@ -417,7 +417,7 @@ function PanelPelanggan({
                 onClick={onNonaktifkan}
                 disabled={sibuk}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors disabled:opacity-40"
-                style={{ backgroundColor: "rgba(140,46,46,0.15)", color: "#e05252" }}
+                style={{ backgroundColor: "rgb(var(--bahaya-rgb) / 0.15)", color: "var(--bahaya)" }}
               >
                 Nonaktifkan akun
               </button>
@@ -428,7 +428,7 @@ function PanelPelanggan({
             onClick={onAktifkan}
             disabled={sibuk}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs transition-colors disabled:opacity-40"
-            style={{ backgroundColor: "rgba(60,160,120,0.14)", color: "#5cc9a0" }}
+            style={{ backgroundColor: "rgb(var(--sukses-rgb) / 0.14)", color: "var(--sukses)" }}
           >
             <Play size={11} /> Aktifkan kembali
           </button>
@@ -560,11 +560,11 @@ function PanelPengguna({ tenantId }: { tenantId: string }) {
           <tbody>
             {items.map((u) => (
               <tr key={u.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Mono className="text-muted-foreground">{u.email}</Mono>
                   <div className="text-muted-foreground">
                     {u.nama} · {u.peran}
-                    {!u.aktif && <span style={{ color: "#d4a040" }}> · nonaktif</span>}
+                    {!u.aktif && <span style={{ color: "var(--peringatan)" }}> · nonaktif</span>}
                   </div>
                 </td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -596,12 +596,12 @@ function PanelPengguna({ tenantId }: { tenantId: string }) {
       {(pesan || galat) && (
         <div className="px-3 py-2 border-t border-border">
           {pesan && (
-            <p className="text-xs" style={{ color: "#5cc9a0" }}>
+            <p className="text-xs" style={{ color: "var(--sukses)" }}>
               {pesan}
             </p>
           )}
           {galat && (
-            <p className="text-xs" style={{ color: "#e05252" }}>
+            <p className="text-xs" style={{ color: "var(--bahaya)" }}>
               {galat}
             </p>
           )}
@@ -671,14 +671,14 @@ function PanelPratinjau({ tenantId }: { tenantId: string }) {
               </tbody>
             </table>
           </div>
-          <p className="text-xs" style={{ color: "#4d5f78" }}>
+          <p className="text-xs" style={{ color: "var(--samar)" }}>
             {data.catatan}
           </p>
         </div>
       )}
 
       {galat && (
-        <p className="text-xs" style={{ color: "#e05252" }}>
+        <p className="text-xs" style={{ color: "var(--bahaya)" }}>
           {galat}
         </p>
       )}
@@ -695,7 +695,7 @@ function PanelAudit() {
   return (
     <div className="bg-card border border-border rounded-sm overflow-hidden">
       <div className="px-3 py-2 border-b border-border flex items-center gap-2">
-        <ScrollText size={13} style={{ color: "#c4824a" }} />
+        <ScrollText size={13} style={{ color: "var(--primary)" }} />
         <PanelLabel sub="Hanya bertambah — tidak dapat disunting maupun dihapus, termasuk oleh superadmin">
           Jejak tindakan
         </PanelLabel>
@@ -723,7 +723,7 @@ function PanelAudit() {
           <tbody>
             {items.map((a) => (
               <tr key={a.id} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Num className="text-muted-foreground">
                     {new Date(a.created_at).toLocaleString("id-ID", {
                       day: "2-digit",
@@ -733,10 +733,10 @@ function PanelAudit() {
                     })}
                   </Num>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Mono className="text-muted-foreground">{a.actor_email}</Mono>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   <Mono className="text-muted-foreground">{a.tenant_slug ?? "—"}</Mono>
                 </td>
                 <td className="px-3 py-2 text-foreground">{LABEL_AKSI[a.aksi] ?? a.aksi}</td>
@@ -762,9 +762,9 @@ export function BilahImpersonasi({
   return (
     <div
       className="flex items-center justify-between gap-3 px-6 py-1.5 flex-shrink-0"
-      style={{ backgroundColor: "rgba(180,120,30,0.18)", borderBottom: "1px solid rgba(212,160,64,0.3)" }}
+      style={{ backgroundColor: "rgb(var(--peringatan-rgb) / 0.18)", borderBottom: "1px solid rgb(var(--peringatan-rgb) / 0.3)" }}
     >
-      <span className="text-xs" style={{ color: "#d4a040" }}>
+      <span className="text-xs" style={{ color: "var(--peringatan)" }}>
         Anda melihat aplikasi sebagai <strong>{nama}</strong>. Setiap tindakan tercatat atas nama
         Anda, bukan atas nama pelanggan.
       </span>
@@ -780,7 +780,7 @@ export function BilahImpersonasi({
         }}
         disabled={sibuk}
         className="text-xs px-2 py-0.5 rounded-sm flex-shrink-0 transition-colors disabled:opacity-50"
-        style={{ backgroundColor: "rgba(10,16,24,0.35)", color: "#d4a040" }}
+        style={{ backgroundColor: "rgb(var(--kabut-rgb) / 0.18)", color: "var(--peringatan)" }}
       >
         {sibuk ? "Keluar…" : "Kembali ke kendali superadmin"}
       </button>

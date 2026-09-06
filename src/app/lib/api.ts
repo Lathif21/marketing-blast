@@ -303,6 +303,8 @@ export interface DomainHealth {
     sent_today: number;
     remaining_today: number | null;
     total_terkirim: number;
+    /** Jadwal lengkap, untuk menggambar runway tanpa menyalin angkanya. */
+    jadwal: { stage: number; daily_limit: number | null; hari_paling_cepat: number }[];
   };
   reputation: {
     bounce_rate_7d: number | null;
@@ -701,4 +703,58 @@ export const LABEL_AKSI: Record<string, string> = {
   impersonasi_mulai: "Masuk sebagai pelanggan",
   impersonasi_selesai: "Keluar dari pelanggan",
   data_pelanggan_dilihat: "Data pelanggan dilihat",
+};
+
+// ─── Integrasi Gmail ─────────────────────────────────────────────────────────
+//
+// Tidak ada token yang pernah dipegang berkas ini. Alur izinnya berlangsung
+// antara peramban pengguna dan Google; yang kita kirim hanyalah permintaan
+// "beri saya URL-nya", lalu peramban berpindah ke sana.
+
+export type StatusGmail = "aktif" | "perlu_sambung_ulang" | "dicabut";
+
+export interface KoneksiGmail {
+  id: string;
+  email: string;
+  status: StatusGmail;
+  terhubung_oleh: string;
+  terhubung_pada: string;
+  last_sync_at: string | null;
+  last_error: string | null;
+  balasan_tercatat: number;
+  kontak_ditambahkan: number;
+}
+
+export const getGmail = () =>
+  request<{
+    aktif: boolean;
+    scopes: string[];
+    koneksi: KoneksiGmail[];
+    catatan: string | null;
+  }>("/integrasi/gmail");
+
+/** Mengembalikan URL halaman izin Google. Peramban yang berpindah ke sana. */
+export const mulaiGmail = () =>
+  request<{ url: string }>("/integrasi/gmail/mulai", { method: "POST" });
+
+export const sinkronGmail = (id: string) =>
+  request<{
+    dibaca: number;
+    balasan: number;
+    kontakBaru: number;
+    ditolak: Record<string, number>;
+  }>(`/integrasi/gmail/${id}/sinkron`, { method: "POST" });
+
+export const putusGmail = (id: string) =>
+  request<{ diputus: boolean; catatan: string }>(`/integrasi/gmail/${id}/putus`, {
+    method: "POST",
+  });
+
+/** Alasan penolakan kandidat kontak, sesuai `AlasanTolak` di server. */
+export const LABEL_TOLAK: Record<string, string> = {
+  satu_arah: "tidak pernah dibalas",
+  otomatis: "alamat mesin",
+  internal: "rekan satu domain",
+  kiriman_massal: "buletin atau notifikasi",
+  tanpa_alamat: "alamat tidak terbaca",
 };

@@ -140,14 +140,52 @@ Ganti dengan `Formulir web`, `Pameran dagang`, `Referral mitra`, atau
 
 ## Urutan pengerjaan
 
-| Urutan | Revisi | Usaha | Dampak |
-|---|---|---|---|
-| 1 | Disiplin monospace | Rendah | Tinggi |
-| 2 | Perbaikan data tiruan LinkedIn | Sangat rendah | Tinggi bila dipresentasikan |
-| 3 | Warna keterlibatan | Rendah | Sedang |
-| 4 | Runway pemanasan | Sedang | Tinggi |
-| 5 | Baris subjek sebagai elemen utama | Sedang | Tinggi |
-| 6 | Momen kirim | Sedang | Sedang |
+| Urutan | Revisi | Usaha | Dampak | Status |
+|---|---|---|---|---|
+| 1 | Disiplin monospace | Rendah | Tinggi | Selesai |
+| 2 | Perbaikan data tiruan LinkedIn | Sangat rendah | Tinggi bila dipresentasikan | Selesai |
+| 3 | Warna keterlibatan | Rendah | Sedang | Selesai |
+| 4 | Runway pemanasan | Sedang | Tinggi | Selesai |
+| 5 | Baris subjek sebagai elemen utama | Sedang | Tinggi | Selesai |
+| 6 | Momen kirim | Sedang | Sedang | **Belum** |
 
-Dua yang pertama bisa dikerjakan dalam satu sesi dan sudah mengubah kesan
-keseluruhan secara nyata.
+## Revisi 7 — Skala tipe
+
+Ditambahkan setelah revisi 1-5 dikerjakan, karena satu hal baru terlihat
+begitu kosakata visualnya berganti: **227 dari 243 elemen teks memakai
+`text-xs` yang sama persis.**
+
+Itu bukan kerapatan, itu ketiadaan hierarki. Kalau semua bersuara pada volume
+yang sama, tidak ada yang terdengar — dan tim yang memindai ratusan baris
+kehilangan bantuan yang paling murah, yaitu ukuran.
+
+Yang diubah adalah skalanya di `src/styles/theme.css`, bukan 227 tempat
+pemakaiannya:
+
+| Peran | Ukuran | Catatan |
+|---|---|---|
+| Label (kepala kolom, `PanelLabel`) | 11px | **Tidak** ikut naik — kontras ukuran dengan isinya yang membuat isinya menonjol |
+| Teks tabel dan prosa pendukung | 13px | naik dari 12px |
+| Prosa yang dibaca, bukan dipindai | 15px | penjelasan di bawah judul layar |
+| Judul kartu | 17px | |
+| Judul layar (`SectionTitle`) | 20px | dulu 12px — judul yang tidak lebih besar dari isinya bukan judul |
+| Metrik utama | 30px | |
+| Baris subjek | 24px | lihat Revisi 5 |
+
+13px dipilih, bukan 14px: kerapatan tabel adalah fitur, dan 14px pada baris
+ber-padding 8px mulai memaksa tabel bernapas lebih lebar daripada yang
+berguna. Padding baris ikut naik 2px, tidak lebih.
+
+## Mode terang
+
+Ditambahkan bersamaan dengan revisi di atas. Latar gelap tetap menjadi bawaan
+mengikuti setelan perangkat, dan tetap menjadi pembeda produk — mode terang
+adalah pilihan, bukan pengganti.
+
+Satu hal yang berbeda dari sekadar membalik warna: **bilah samping menjadi
+putih di mode terang**, kebalikan dari mode gelap yang bilahnya paling gelap.
+Alasannya terukur — nama menu aktif diwarnai oranye merek, dan oranye di atas
+abu-abu muda hanya mencapai 4,3:1. Di atas putih, 5,1:1.
+
+Seluruh warna teks pada palet terang diperiksa mencapai minimal 4,5:1 terhadap
+ketiga latarnya.

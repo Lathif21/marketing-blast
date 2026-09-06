@@ -43,6 +43,10 @@ Sumber data internal: `github.com/Lathif21/email_scrapper`
 | [06-rencana-build.md](06-rencana-build.md) | Urutan pengerjaan dan definisi selesai |
 | [07-domain-dan-dns.md](07-domain-dan-dns.md) | Domain pengirim, SPF, DKIM, DMARC — cara memasang dan memeriksanya |
 | [08-amazon-ses.md](08-amazon-ses.md) | Akun AWS, verifikasi domain, keluar sandbox, webhook pemantulan |
+| [09-eksekusi-fase-1.md](09-eksekusi-fase-1.md) | Catatan eksekusi fase pertama |
+| [11-integrasi-gmail.md](11-integrasi-gmail.md) | Menyambungkan kotak masuk: deteksi balasan dan impor korespondensi |
+| [12-uji-regresi.md](12-uji-regresi.md) | **Cara menjalankan uji end-to-end**, apa yang dibuktikan, dan cara membacanya saat gagal |
+| [open-items.md](open-items.md) | Yang belum dikerjakan, beserta alasannya |
 
 ## Menjalankan secara lokal
 
@@ -56,6 +60,19 @@ npm run dev         # Vite di :5173
 
 `npm run dev:api` menjalankan migrasi setiap kali, dan migrasinya idempoten —
 jadi tidak perlu diingat kapan terakhir dijalankan.
+
+## Menjalankan uji
+
+```bash
+cd apps/api
+npm run check       # typecheck + uji unit, tanpa basis data
+npm run test:e2e    # uji regresi end-to-end, butuh PostgreSQL berjalan
+```
+
+Uji regresi memakai basis data TERPISAH berakhiran `_regresi` dan menolak
+berjalan di luar itu — ia menjalankan `DELETE FROM contacts` untuk membersihkan
+fixture. Rinciannya, termasuk apa yang TIDAK dibuktikannya, ada di
+[12-uji-regresi.md](12-uji-regresi.md).
 
 Layar impor, kontak, dan daftar suppres membaca dari API. Kalau API belum
 hidup, ketiganya menampilkan pesan yang menyebutkan perintah di atas, bukan

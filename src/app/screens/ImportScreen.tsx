@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { SectionTitle } from "../components/SectionTitle";
+import { KoneksiGmail } from "../components/KoneksiGmail";
 import { StepBar } from "../components/StepBar";
 import { Mono, Num, PanelLabel } from "../components/Typography";
 import {
@@ -182,10 +183,10 @@ export function ImportScreen() {
       {error && (
         <div
           className="rounded-sm p-3 mb-4 flex items-start gap-2 border"
-          style={{ backgroundColor: "rgba(140,46,46,0.14)", borderColor: "rgba(224,82,82,0.28)" }}
+          style={{ backgroundColor: "rgb(var(--bahaya-rgb) / 0.14)", borderColor: "rgb(var(--bahaya-rgb) / 0.28)" }}
         >
-          <XCircle size={14} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
-          <p className="text-xs" style={{ color: "#e05252" }}>
+          <XCircle size={14} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
+          <p className="text-xs" style={{ color: "var(--bahaya)" }}>
             {error}
           </p>
         </div>
@@ -194,10 +195,17 @@ export function ImportScreen() {
       {/* ── Langkah 1 ── */}
       {step === 1 && (
         <div className="space-y-4">
-          <SectionTitle
-            label="Unggah Berkas"
-            sub="Unggah file CSV atau file terenkripsi .enc berisi daftar kontak bisnis."
-          />
+          <SectionTitle
+            label="Unggah Berkas"
+            sub="Unggah file CSV atau file terenkripsi .enc berisi daftar kontak bisnis."
+          />
+
+          {/* Impor dari kotak masuk berdampingan dengan impor berkas, bukan di
+              layar sendiri: keduanya menjawab pertanyaan yang sama — "dari mana
+              kontak ini datang" — dan yang satu punya dasar izin jauh lebih
+              kuat daripada yang lain. Menaruhnya bersebelahan membuat pilihan
+              itu terlihat. */}
+          <KoneksiGmail />
 
           <input
             ref={inputRef}
@@ -220,8 +228,8 @@ export function ImportScreen() {
             disabled={busy}
             className="w-full border-2 border-dashed rounded-sm p-12 text-center cursor-pointer transition-colors"
             style={{
-              borderColor: file ? "#2b7a5a" : "rgba(100,140,180,0.22)",
-              backgroundColor: file ? "rgba(43,122,90,0.08)" : "rgba(100,140,180,0.03)",
+              borderColor: file ? "var(--sukses-kuat)" : "rgb(var(--kabut-rgb) / 0.22)",
+              backgroundColor: file ? "rgb(var(--sukses-rgb) / 0.08)" : "rgb(var(--kabut-rgb) / 0.03)",
             }}
             onClick={() => inputRef.current?.click()}
           >
@@ -232,8 +240,8 @@ export function ImportScreen() {
               </div>
             ) : file ? (
               <div className="flex flex-col items-center gap-2">
-                <CheckCircle size={32} style={{ color: "#5cc9a0" }} />
-                <Mono className="text-sm" style={{ color: "#5cc9a0" }}>
+                <CheckCircle size={32} style={{ color: "var(--sukses)" }} />
+                <Mono className="text-sm" style={{ color: "var(--sukses)" }}>
                   {file.name}
                 </Mono>
                 <span className="text-xs text-muted-foreground">klik untuk ganti file</span>
@@ -257,7 +265,7 @@ export function ImportScreen() {
               untuk berkas yang belum tentu terenkripsi. */}
           <div className="bg-card border border-border rounded-sm p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Lock size={12} style={{ color: "#c4824a" }} />
+              <Lock size={12} style={{ color: "var(--primary)" }} />
               <span className="text-xs font-medium text-foreground">File Terenkripsi (.enc)</span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -303,11 +311,11 @@ export function ImportScreen() {
             <div
               className="rounded-sm p-3 flex items-start gap-2 border"
               style={{
-                backgroundColor: "rgba(43,122,90,0.1)",
-                borderColor: "rgba(92,201,160,0.25)",
+                backgroundColor: "rgb(var(--sukses-rgb) / 0.1)",
+                borderColor: "rgb(var(--sukses-rgb) / 0.25)",
               }}
             >
-              <CheckCircle size={13} style={{ color: "#5cc9a0", flexShrink: 0, marginTop: 1 }} />
+              <CheckCircle size={13} style={{ color: "var(--sukses)", flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs text-muted-foreground">
                 Terdeteksi <strong className="text-foreground">Contact Harvester</strong> —{" "}
                 <Num>13</Num> kolom dikenali. Kolom <Mono>whatsapp</Mono> dan <Mono>phone</Mono>{" "}
@@ -328,7 +336,7 @@ export function ImportScreen() {
                     <th
                       key={c}
                       className="px-3 py-2 text-left font-mono text-muted-foreground whitespace-nowrap"
-                      style={{ backgroundColor: "rgba(100,140,180,0.06)" }}
+                      style={{ backgroundColor: "rgb(var(--kabut-rgb) / 0.06)" }}
                     >
                       {c}
                     </th>
@@ -370,10 +378,10 @@ export function ImportScreen() {
                       ))}
                     </select>
                     {required && !mapping[key] && (
-                      <AlertCircle size={12} style={{ color: "#d4a040", flexShrink: 0 }} />
+                      <AlertCircle size={12} style={{ color: "var(--peringatan)", flexShrink: 0 }} />
                     )}
                     {required && mapping[key] && (
-                      <Check size={12} style={{ color: "#5cc9a0", flexShrink: 0 }} />
+                      <Check size={12} style={{ color: "var(--sukses)", flexShrink: 0 }} />
                     )}
                   </div>
                 ))}
@@ -384,7 +392,7 @@ export function ImportScreen() {
           {/* Pernyataan sumber izin — memblokir seluruh impor bila kosong. */}
           <div
             className="bg-card border rounded-sm p-4"
-            style={{ borderColor: consentTerisi ? "rgba(100,140,180,0.12)" : "rgba(212,160,64,0.4)" }}
+            style={{ borderColor: consentTerisi ? "rgb(var(--kabut-rgb) / 0.12)" : "rgb(var(--peringatan-rgb) / 0.4)" }}
           >
             <PanelLabel className="mb-1">Sumber izin (wajib)</PanelLabel>
             <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
@@ -411,7 +419,7 @@ export function ImportScreen() {
                 value={declaredBy}
                 onChange={(e) => setDeclaredBy(e.target.value)}
                 className="bg-secondary border border-border rounded-sm px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none"
-                style={{ caretColor: "#c4824a" }}
+                style={{ caretColor: "var(--primary)" }}
               />
             </div>
           </div>
@@ -429,8 +437,8 @@ export function ImportScreen() {
               title={bolehLanjut ? undefined : "Sumber izin dan nama penyata wajib diisi"}
               className="px-4 py-2 text-xs rounded-sm flex items-center gap-2 transition-all"
               style={{
-                backgroundColor: bolehLanjut && !busy ? "#c4824a" : "rgba(100,140,180,0.1)",
-                color: bolehLanjut && !busy ? "#fff" : "#6a82a0",
+                backgroundColor: bolehLanjut && !busy ? "var(--primary)" : "rgb(var(--kabut-rgb) / 0.1)",
+                color: bolehLanjut && !busy ? "var(--primary-foreground)" : "var(--muted-foreground)",
                 cursor: bolehLanjut && !busy ? "pointer" : "not-allowed",
               }}
             >
@@ -455,10 +463,10 @@ export function ImportScreen() {
 
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: "Diterima", count: validation.accepted, color: "#5cc9a0", bg: "rgba(43,122,90,0.15)", desc: "Tersimpan, siap dikirim setelah verifikasi" },
-              { label: "Karantina", count: validation.quarantined, color: "#d4a040", bg: "rgba(180,120,30,0.15)", desc: "Alamat hasil tebakan, perlu verifikasi" },
-              { label: "Duplikat", count: validation.duplicates, color: "#8da0b8", bg: "rgba(106,130,160,0.1)", desc: "Sudah ada di basis data" },
-              { label: "Ditolak", count: validation.rejected, color: "#e05252", bg: "rgba(140,46,46,0.15)", desc: "Format tidak valid atau ada di daftar penekanan" },
+              { label: "Diterima", count: validation.accepted, color: "var(--sukses)", bg: "rgb(var(--sukses-rgb) / 0.15)", desc: "Tersimpan, siap dikirim setelah verifikasi" },
+              { label: "Karantina", count: validation.quarantined, color: "var(--peringatan)", bg: "rgb(var(--peringatan-rgb) / 0.15)", desc: "Alamat hasil tebakan, perlu verifikasi" },
+              { label: "Duplikat", count: validation.duplicates, color: "var(--secondary-foreground)", bg: "rgb(var(--kabut-rgb) / 0.1)", desc: "Sudah ada di basis data" },
+              { label: "Ditolak", count: validation.rejected, color: "var(--bahaya)", bg: "rgb(var(--bahaya-rgb) / 0.15)", desc: "Format tidak valid atau ada di daftar penekanan" },
             ].map((s) => (
               <div
                 key={s.label}
@@ -480,17 +488,17 @@ export function ImportScreen() {
               {validation.notes.map((n, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs">
                   {n.type === "warn" && (
-                    <AlertTriangle size={12} style={{ color: "#d4a040", flexShrink: 0, marginTop: 1 }} />
+                    <AlertTriangle size={12} style={{ color: "var(--peringatan)", flexShrink: 0, marginTop: 1 }} />
                   )}
                   {n.type === "info" && (
-                    <AlertCircle size={12} style={{ color: "#8da0b8", flexShrink: 0, marginTop: 1 }} />
+                    <AlertCircle size={12} style={{ color: "var(--secondary-foreground)", flexShrink: 0, marginTop: 1 }} />
                   )}
                   {n.type === "error" && (
-                    <XCircle size={12} style={{ color: "#e05252", flexShrink: 0, marginTop: 1 }} />
+                    <XCircle size={12} style={{ color: "var(--bahaya)", flexShrink: 0, marginTop: 1 }} />
                   )}
                   <span
                     style={{
-                      color: n.type === "warn" ? "#d4a040" : n.type === "error" ? "#e05252" : "#8da0b8",
+                      color: n.type === "warn" ? "var(--peringatan)" : n.type === "error" ? "var(--bahaya)" : "var(--secondary-foreground)",
                     }}
                   >
                     {n.text}
@@ -503,9 +511,9 @@ export function ImportScreen() {
           {committed !== null ? (
             <div
               className="rounded-sm p-4 flex items-start gap-3 border"
-              style={{ backgroundColor: "rgba(43,122,90,0.12)", borderColor: "rgba(92,201,160,0.3)" }}
+              style={{ backgroundColor: "rgb(var(--sukses-rgb) / 0.12)", borderColor: "rgb(var(--sukses-rgb) / 0.3)" }}
             >
-              <CheckCircle size={16} style={{ color: "#5cc9a0", flexShrink: 0, marginTop: 1 }} />
+              <CheckCircle size={16} style={{ color: "var(--sukses)", flexShrink: 0, marginTop: 1 }} />
               <div>
                 <p className="text-xs text-foreground mb-1">
                   <Num>{committed.toLocaleString("id-ID")}</Num> kontak tersimpan.
@@ -543,8 +551,8 @@ export function ImportScreen() {
                   disabled={busy}
                   className="px-4 py-2 text-xs rounded-sm flex items-center gap-2"
                   style={{
-                    backgroundColor: busy ? "rgba(100,140,180,0.1)" : "#2b7a5a",
-                    color: busy ? "#6a82a0" : "#fff",
+                    backgroundColor: busy ? "rgb(var(--kabut-rgb) / 0.1)" : "var(--sukses-kuat)",
+                    color: busy ? "var(--muted-foreground)" : "var(--primary-foreground)",
                     cursor: busy ? "not-allowed" : "pointer",
                   }}
                 >
@@ -603,7 +611,7 @@ function DialogSandi({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(5,9,14,0.72)" }}
+      style={{ backgroundColor: "var(--scrim)" }}
       onClick={onBatal}
       role="presentation"
     >
@@ -619,12 +627,12 @@ function DialogSandi({
         aria-label="Sandi dekripsi berkas"
       >
         <div className="flex items-center gap-2">
-          <Lock size={13} style={{ color: "#c4824a" }} />
+          <Lock size={13} style={{ color: "var(--primary)" }} />
           <span className="text-xs font-medium text-foreground">Berkas terenkripsi</span>
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <Mono style={{ color: "#dce3ec" }}>{namaBerkas}</Mono> terenkripsi. Masukkan sandi yang
+          <Mono style={{ color: "var(--foreground)" }}>{namaBerkas}</Mono> terenkripsi. Masukkan sandi yang
           dipakai saat berkas ini diekspor dari Contact Harvester.
         </p>
 
@@ -639,11 +647,11 @@ function DialogSandi({
           placeholder="Sandi dekripsi"
           disabled={sibuk}
           className="w-full bg-secondary border border-border rounded-sm px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-60"
-          style={{ caretColor: "#c4824a" }}
+          style={{ caretColor: "var(--primary)" }}
         />
 
         {galat && (
-          <p className="text-xs flex items-start gap-1.5" style={{ color: "#e05252" }}>
+          <p className="text-xs flex items-start gap-1.5" style={{ color: "var(--bahaya)" }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             {galat}
           </p>
@@ -654,7 +662,7 @@ function DialogSandi({
             type="submit"
             disabled={!sandi || sibuk}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-sm text-xs transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "rgba(196,130,74,0.15)", color: "#c4824a" }}
+            style={{ backgroundColor: "rgb(var(--primary-rgb) / 0.15)", color: "var(--primary)" }}
           >
             {sibuk && <Loader2 size={12} className="animate-spin" />}
             Buka berkas
@@ -669,7 +677,7 @@ function DialogSandi({
           </button>
         </div>
 
-        <p className="text-xs" style={{ color: "#4d5f78" }}>
+        <p className="text-xs" style={{ color: "var(--samar)" }}>
           Sandi dipakai sekali untuk mendekripsi di memori server, tidak disimpan di mana pun.
         </p>
       </form>
