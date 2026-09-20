@@ -59,6 +59,23 @@ const PUBLIK_PERSIS = new Set(["/health"]);
 const PUBLIK_AWALAN = ["/unsubscribe/", "/webhooks/ses", "/auth/login"];
 
 /**
+ * Cangkang frontend, hanya ketika proses ini memang menyajikannya
+ * (`STATIC_DIR` terisi — lihat config.ts).
+ *
+ * Keduanya WAJIB terbuka tanpa sesi: layar masuk ada di dalam berkas-berkas
+ * ini, dan layar masuk yang menuntut sesi tidak dapat dibuka siapa pun.
+ *
+ * Yang terbuka hanya cangkangnya — HTML, JS, CSS yang sama untuk setiap
+ * pengunjung. Seluruh data pelanggan tetap datang lewat rute di bawah, yang
+ * tetap dijaga sepenuhnya.
+ *
+ * Dibuat bersyarat, bukan permanen: di pengembangan Vite yang menyajikan
+ * frontend, dan tidak ada alasan `/` berhenti dijawab 401 di sana.
+ */
+const PUBLIK_STATIS_PERSIS = ["/", "/index.html"];
+const PUBLIK_STATIS_AWALAN = ["/assets/"];
+
+/**
  * Rute yang boleh diakses superadmin TANPA memilih pelanggan lebih dulu.
  * Semua rute lain adalah rute data pelanggan.
  */
@@ -66,7 +83,12 @@ const LINTAS_PELANGGAN = ["/admin/", "/auth/"];
 
 function rutePublik(url: string): boolean {
   const path = url.split("?")[0];
-  return PUBLIK_PERSIS.has(path) || PUBLIK_AWALAN.some((a) => path.startsWith(a));
+  if (PUBLIK_PERSIS.has(path) || PUBLIK_AWALAN.some((a) => path.startsWith(a))) return true;
+
+  if (!config.staticDir) return false;
+  return (
+    PUBLIK_STATIS_PERSIS.includes(path) || PUBLIK_STATIS_AWALAN.some((a) => path.startsWith(a))
+  );
 }
 
 /** Pembaca cookie sederhana. Satu nilai yang dicari, tanpa dependensi baru. */

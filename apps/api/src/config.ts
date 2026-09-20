@@ -50,6 +50,21 @@ export const config = {
   port: Number(optional("PORT", "3000")),
   host: optional("HOST", "0.0.0.0"),
 
+  /**
+   * Direktori hasil `vite build`. Kalau diisi, proses ini ikut menyajikan
+   * frontend — API dan antarmuka berbagi satu origin.
+   *
+   * Satu origin bukan kenyamanan, melainkan syarat: cookie sesi memakai
+   * `SameSite=Lax` (auth/plugin.ts), yang menolak dikirim lintas situs.
+   * Frontend di domain lain akan berhasil login lalu kehilangan sesinya pada
+   * permintaan berikutnya — gagal dengan cara yang terlihat seperti bug,
+   * bukan seperti salah konfigurasi.
+   *
+   * Kosong saat pengembangan: di sana Vite yang menyajikan frontend dan
+   * memproksi `/api` ke sini.
+   */
+  staticDir: optional("STATIC_DIR", ""),
+
   db: {
     /** Pemilik skema. Hanya dipakai runner migrasi. */
     adminUrl: required("DATABASE_URL"),

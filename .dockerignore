@@ -1,0 +1,22 @@
+# .env tidak pernah masuk image. Rahasia diisi lewat variabel lingkungan di
+# host, bukan dipanggang ke dalam lapisan image — lapisan dapat dibaca siapa
+# pun yang memegang image-nya.
+.env
+.env.*
+!.env.example
+
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.gitignore
+
+# Outbox driver dummy: berisi alamat penerima sungguhan dan token berhenti
+# berlangganan yang masih sah.
+var/outbox
+apps/api/var
+
+docs
+guidelines
+*.md

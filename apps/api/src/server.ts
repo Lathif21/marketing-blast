@@ -5,8 +5,11 @@
 //   /webhooks/ses       — SNS tidak bisa membawa kredensial kita
 // Keduanya mengamankan diri sendiri: token HMAC dan tanda tangan SNS.
 
+import { existsSync } from "node:fs";
+import path from "node:path";
 import Fastify from "fastify";
 import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { config, validateConfig } from "./config.js";
 import { close, ping } from "./db.js";
 import { mailDriver } from "./mail/index.js";
@@ -25,6 +28,19 @@ import { sesWebhookRoutes } from "./routes/webhooks-ses.js";
 const app = Fastify({
   logger: { level: config.env === "production" ? "info" : "debug" },
   bodyLimit: 30 * 1024 * 1024,
+
+  // Frontend selalu memanggil `/api/...`, di pengembangan maupun di produksi.
+  //
+  // Di pengembangan prefiks itu dilucuti oleh proxy dev server Vite
+  // (vite.config.ts). Proxy itu bagian dari Vite, bukan bagian aplikasi, jadi
+  // ia tidak ikut ter-build — dan tanpa penggantinya, build produksi memanggil
+  // alamat yang tidak ada di sini. Baris ini penggantinya.
+  //
+  // `rewriteUrl` dijalankan SEBELUM perutean, jadi rute tetap ditulis tanpa
+  // prefiks dan daftar rute publik di auth/plugin.ts tetap dievaluasi terhadap
+  // path yang sudah bersih. Hook autentikasi melihat `/contacts`, bukan
+  // `/api/contacts`, sehingga penjagaannya tidak berubah sama sekali.
+  rewriteUrl: (req) => (req.url?.startsWith("/api/") ? req.url.slice(4) : (req.url ?? "/")),
 });
 
 await app.register(multipart, {
@@ -98,6 +114,31 @@ app.get("/health", async (_req, reply) => {
       .send({ status: "degraded", database: "unreachable", mail: mailStatus });
   }
 });
+
+// Frontend, kalau proses ini memang ditugasi menyajikannya.
+//
+// Didaftarkan SEBELUM authPlugin, dan urutan itu yang membuatnya bekerja: hook
+// autentikasi hanya berlaku untuk rute yang didaftarkan sesudahnya (alasannya
+// di bawah). Berkas statis harus dapat diambil tanpa sesi — layar masuk sendiri
+// adalah salah satunya, dan layar masuk yang menuntut sesi tidak akan pernah
+// bisa dibuka siapa pun.
+//
+// Yang disajikan hanya isi direktori build: HTML, JS, CSS. Tidak ada rute data
+// di lingkup ini, jadi tidak ada satu pun endpoint pelanggan yang ikut terbuka.
+if (config.staticDir) {
+  const dir = path.resolve(config.staticDir);
+
+  // Salah jalur harus berhenti di sini, bukan berakhir sebagai 404 di browser
+  // yang menyesatkan — dari luar, frontend yang tidak tersalin terlihat persis
+  // seperti frontend yang rusak.
+  if (!existsSync(path.join(dir, "index.html"))) {
+    app.log.error({ dir }, "STATIC_DIR tidak berisi index.html — jalankan `npm run build` lebih dulu");
+    process.exit(1);
+  }
+
+  await app.register(fastifyStatic, { root: dir, index: ["index.html"] });
+  app.log.info({ dir }, "frontend disajikan dari proses ini");
+}
 
 // Autentikasi dipasang LANGSUNG pada instance akar, bukan lewat `register`.
 //
